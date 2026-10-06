@@ -34,7 +34,7 @@ export const DEFAULT_CONFIG: ExperienceConfig = {
   unlockName: 'Subhajit',
   recipientName: 'My Favorite Person',
   creatorName: 'Subhajit',
-  whatsappNumber: '919876543210',
+  whatsappNumber: '916001155729',
   whatsappMessage: "I opened all your gifts... and I couldn't stop smiling. Coming outside right now! 🥰❤️",
   customLetterText: `From the very first moment our paths crossed, you brought a warmth and magic into my life that nothing else could ever compare to.
 
