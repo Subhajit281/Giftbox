@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { GiftBoxScene } from './GiftBoxScene';
-import { loadSavedConfig, saveConfig } from '../state/ExperienceState';
+import { loadSavedConfig} from '../state/ExperienceState';
 import type { ExperienceState } from '../state/ExperienceState';
 import { INITIAL_GIFTS } from '../content/giftData';
 import type { GiftItem, ExperienceConfig } from '../content/giftData';
@@ -23,7 +23,7 @@ export const ExperienceRoot: React.FC = () => {
   const [currentState, setCurrentState] = useState<ExperienceState>('BOOT');
   const [gifts, setGifts] = useState<GiftItem[]>(INITIAL_GIFTS);
   const [selectedGiftId, setSelectedGiftId] = useState<string | null>(null);
-  const [config, setConfig] = useState<ExperienceConfig>(loadSavedConfig());
+  const [config] = useState<ExperienceConfig>(loadSavedConfig());
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [doorOpened, setDoorOpened] = useState(false);
