@@ -1,0 +1,400 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-burgundy-900: #5C3A21;  
+    --color-burgundy-800: #7A4F2A;
+    --color-burgundy-700: #A66A36;
+    --color-gold-500: #c59b27;
+    --color-gold-400: #d4af37;
+    --color-rose-500: #c16e7d;
+    --color-rose-400: #d58996;
+    --color-ivory-100: #ffffff;
+    --color-ivory-200: #fbf7f2;
+    --color-light-bg: #fbf7f2;
+    --color-text-main: #2e0b19;
+  }
+
+  html, body, #root {
+    width: 100%;
+    height: 100dvh;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    position: fixed;
+    background-color: #fbf7f2;
+    color: #2e0b19;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+}
+
+.font-serif-luxury {
+  font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+}
+
+.font-display-luxury {
+  font-family: 'Playfair Display', 'Cormorant Garamond', Georgia, serif;
+}
+
+/* Animations */
+@keyframes floatGentle {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes glowPulseLight {
+  0%, 100% { filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.3)); }
+  50% { filter: drop-shadow(0 0 20px rgba(212, 175, 55, 0.6)); }
+}
+
+@keyframes lockShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px) rotate(-2deg); }
+  40%, 80% { transform: translateX(6px) rotate(2deg); }
+}
+
+.animate-float-gentle {
+  animation: floatGentle 4.5s ease-in-out infinite;
+}
+
+.animate-glow-pulse {
+  animation: glowPulseLight 3s ease-in-out infinite;
+}
+
+.animate-lock-shake {
+  animation: lockShake 0.4s ease-in-out;
+}
+
+/* Clean, bright luxury glassmorphism */
+.glass-panel {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(255, 248, 239, 0.88));
+  backdrop-filter: blur(50px) saturate(140%);
+  -webkit-backdrop-filter: blur(50px) saturate(140%);
+  border: 1px solid rgba(242, 207, 119, 0.62);
+  box-shadow: 0 22px 56px rgba(20, 3, 11, 0.3), 0 2px 9px rgba(212, 175, 55, 0.15), inset 0 1px rgba(255, 255, 255, 0.84);
+  color: #2e0b19;
+}
+
+.glass-pill {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(255, 246, 231, 0.88));
+  backdrop-filter: blur(50px) saturate(135%);
+  -webkit-backdrop-filter: blur(16px) saturate(135%);
+  border: 1px solid rgba(242, 207, 119, 0.62);
+  box-shadow: 0 10px 28px rgba(20, 3, 11, 0.2), inset 0 1px rgba(255, 255, 255, 0.82);
+  color: #2e0b19;
+}
+
+/* A single, restrained surface language for every rounded content block. */
+div[class*="rounded-"] {
+  border-radius: 0.375rem !important;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.82), rgba(255, 242, 226, 0.66)) !important;
+  backdrop-filter: blur(90px) saturate(100%);
+  -webkit-backdrop-filter: blur(90px) saturate(100%);
+  border-color: rgba(242, 207, 119, 0.58) !important;
+  box-shadow: 0 10px 26px rgba(20, 3, 11, 0.2), inset 0 1px rgba(255, 255, 255, 0.76);
+}
+
+/* Parchment texture style for letter */
+.parchment-paper {
+  background: #fffdf9;
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(212, 175, 55, 0.08) 0%, transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(193, 110, 125, 0.08) 0%, transparent 50%),
+    repeating-linear-gradient(0deg, transparent, transparent 27px, rgba(200, 175, 140, 0.18) 28px);
+  box-shadow: 0 12px 30px rgba(84, 17, 43, 0.1), inset 0 0 50px rgba(212, 175, 55, 0.1);
+  color: #2e0b19;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.04);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(212, 175, 55, 0.45);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 175, 55, 0.75);
+}
+
+/* Fade-in animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out both;
+}
+
+/* Birthday reveal: burst of balloons + sparkles, message rises bottom → top. */
+@keyframes birthdayBalloonFlight {
+  0% {
+    transform: translate3d(0, 0, 0) scale(0);
+    opacity: 0;
+    animation-timing-function: cubic-bezier(.12, .8, .28, 1); /* explosive burst */
+  }
+  4% { opacity: 1; }
+  20% {
+    transform: translate3d(var(--bx), var(--by), 0) scale(calc(var(--balloon-size) * var(--bs, 1)));
+    opacity: 1;
+    animation-timing-function: cubic-bezier(.3, .1, .6, 1); /* gentle float up */
+  }
+  100% {
+    transform: translate3d(calc(var(--bx) + var(--bdrift)), -135dvh, 0) scale(calc(var(--balloon-size) * var(--bs, 1)));
+    opacity: 1;
+  }
+}
+
+@keyframes birthdayBalloonSway {
+  from { transform: rotate(calc(var(--sway-deg) * -1)); }
+  to   { transform: rotate(var(--sway-deg)); }
+}
+
+@keyframes birthdaySparkleFlight {
+  0% {
+    transform: translate3d(0, 0, 0) scale(0);
+    opacity: 0;
+    animation-timing-function: cubic-bezier(.1, .8, .3, 1); /* burst out */
+  }
+  3% { opacity: 1; }
+  14% {
+    transform: translate3d(var(--sx), var(--sy), 0) scale(1);
+    opacity: 1;
+    animation-timing-function: cubic-bezier(.5, 0, .9, .6); /* gravity fall */
+  }
+  85% { opacity: .9; }
+  100% {
+    transform: translate3d(calc(var(--sx) + var(--sfd)), 6dvh, 0) scale(.5);
+    opacity: 0;
+  }
+}
+
+@keyframes birthdayTwinkle {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  50% { transform: scale(.45) rotate(45deg); opacity: .55; }
+}
+
+@keyframes birthdayMessageRise {
+  0% { transform: translate3d(-50%, 100%, 0) scale(.94); opacity: 0; }
+  12% { opacity: 1; }
+  82% { opacity: 1; }
+  100% { transform: translate3d(-50%, calc(100% - 92dvh), 0) scale(1); opacity: 0; }
+}
+
+@keyframes birthdayShimmer {
+  from { background-position: 0% 50%; }
+  to   { background-position: 200% 50%; }
+}
+
+@keyframes birthdayGlow {
+  0%, 100% { opacity: 0; }
+  8%, 60% { opacity: 1; }
+}
+
+.birthday-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 100%, rgba(251, 211, 117, 0.35), transparent 55%);
+  animation: birthdayGlow 8s ease-out both;
+}
+
+/* Balloons */
+.birthday-balloon {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 34px;
+  height: 43px;
+  margin-left: -17px;
+  transform-origin: 50% 100%;
+  will-change: transform;
+  animation: birthdayBalloonFlight var(--balloon-dur, 8s) linear var(--balloon-delay) both;
+}
+
+.birthday-balloon-sway {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 97px; /* pivot at the bottom of the string → tail-wag */
+  animation: birthdayBalloonSway var(--sway-dur) ease-in-out var(--sway-delay) infinite alternate;
+}
+
+.birthday-balloon-body {
+  position: absolute;
+  inset: 0;
+  border-radius: 50% 50% 48% 48%;
+  background: radial-gradient(circle at 32% 22%, rgba(255, 255, 255, 0.88) 0 5%, var(--balloon-color) 18%, color-mix(in srgb, var(--balloon-color) 60%, #8b3454) 100%);
+  box-shadow: inset -5px -8px 12px rgba(70, 5, 25, 0.2), 0 8px 20px rgba(15, 0, 8, 0.25);
+}
+
+.birthday-balloon-knot {
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  width: 8px;
+  height: 8px;
+  transform: translateX(-50%) rotate(45deg);
+  background: var(--balloon-color);
+}
+
+.birthday-balloon-string {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 1px;
+  height: 54px;
+  background: rgba(150, 110, 60, 0.55);
+  transform: translateX(-50%);
+}
+
+/* Sparkles */
+.birthday-sparkle {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: var(--sparkle-size);
+  height: var(--sparkle-size);
+  margin-left: calc(var(--sparkle-size) / -2);
+  filter: drop-shadow(0 0 6px rgba(255, 205, 91, 0.9));
+  will-change: transform, opacity;
+  animation: birthdaySparkleFlight var(--sparkle-dur, 7s) linear var(--sparkle-delay) both;
+}
+
+.birthday-sparkle::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #fff3bd;
+  clip-path: polygon(50% 0%, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0% 50%, 39% 39%);
+  animation: birthdayTwinkle var(--twinkle-dur, 0.9s) ease-in-out infinite;
+}
+
+/* Message */
+.birthday-message {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: min(90vw, 560px);
+  padding: 0 0.5rem;
+  text-align: center;
+  will-change: transform, opacity;
+  animation: birthdayMessageRise 10.7s cubic-bezier(.3, .25, .5, 1) 0.4s both;
+}
+
+/* soft dark halo so the gold text stays readable on the light page */
+.birthday-message::before {
+  content: '';
+  position: absolute;
+  inset: -36px -16px;
+  z-index: -1;
+  background: radial-gradient(ellipse at center, rgba(46, 11, 25, 0.55), transparent 70%);
+  filter: blur(14px);
+}
+
+.birthday-eyebrow {
+  display: block;
+  margin-bottom: 0.6rem;
+  color: #f5cf78;
+  font-size: clamp(0.6rem, 2.4vw, 0.78rem);
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  text-shadow: 0 2px 12px rgba(31, 2, 15, 0.9);
+}
+
+.birthday-message h2 {
+  margin: 0;
+  font-family: 'Playfair Display', 'Cormorant Garamond', Georgia, serif;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.birthday-title-line,
+.birthday-name {
+  display: block;
+  background: linear-gradient(100deg, #fff3c4 0%, #f2cf77 25%, #fff8dc 50%, #d4af37 75%, #fff3c4 100%);
+  background-size: 100% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  filter: drop-shadow(0 3px 14px rgba(31, 2, 15, 0.85));
+  animation: birthdayShimmer 3s linear infinite;
+}
+
+.birthday-title-line {
+  font-style: italic;
+  font-size: clamp(1.6rem, 7.2vw, 3rem);
+  letter-spacing: -0.01em;
+}
+
+.birthday-name {
+  margin-top: 0.15rem;
+  font-size: clamp(3.2rem, 17vw, 6.5rem);
+  letter-spacing: -0.03em;
+}
+
+.birthday-message p {
+  margin: 0.8rem 0 0;
+  color: #ffecc3;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(1rem, 3.8vw, 1.4rem);
+  font-style: italic;
+  font-weight: 600;
+  text-shadow: 0 2px 12px rgba(31, 2, 15, 0.9);
+}
+
+/* Phones: slightly smaller balloons, fewer particles */
+@media (max-width: 640px) {
+  .birthday-balloon { --bs: 0.8; }
+  .birthday-balloon--extra,
+  .birthday-sparkle--extra { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .birthday-balloon, .birthday-balloon-sway, .birthday-sparkle, .birthday-sparkle::before,
+  .birthday-message, .birthday-title-line, .birthday-name, .birthday-glow { animation-duration: 0.01ms; animation-iteration-count: 1; }
+}
+/* Safe area padding for notched phones (iPhone etc.) */
+@supports (padding: max(0px)) {
+  .safe-bottom {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+  .safe-top {
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+  }
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 640px) {
+  .glass-panel {
+    padding: 1rem 1rem;
+    border-radius: 1.25rem;
+    box-shadow: 0 12px 30px rgba(84, 17, 43, 0.1), 0 1px 4px rgba(0, 0, 0, 0.03);
+  }
+  
+  .glass-pill {
+    backdrop-filter: blur(50px);
+    -webkit-backdrop-filter: blur(50px);
+  }
+  
+  .parchment-paper {
+    padding: 1rem 1.25rem;
+    font-size: 0.95rem;
+  }
+}
+
+/* Prevent text selection and callout on mobile */
+@media (hover: none) and (pointer: coarse) {
+  * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+
+  button, input, textarea, a {
+    touch-action: manipulation;
+  }
+}
