@@ -1578,11 +1578,19 @@ export class GiftBoxScene {
 
   private createPerson(kind: 'boy' | 'girl'): Person {
     const isGirl = kind === 'girl';
-    const pal = SILHOUETTE
-      ? { skin: 0x1a0a13, top: 0x14070f, bottom: 0x120610, hair: 0x080307 }
-      : isGirl
-        ? { skin: 0xf1c9a5, top: 0xd9456f, bottom: 0xd9456f, hair: 0x2a1810 }
-        : { skin: 0xf1c9a5, top: 0x2c3e66, bottom: 0x1f2a47, hair: 0x2a1810 };
+    const pal = isGirl
+      ? {
+          skin: 0xffefd2,
+          top: 0x007c83,      // PEACOCK BLUE
+          bottom: 0x007c83,
+          hair: 0x000000,     // BLACK
+        }
+      : {
+          skin: 0xffefd2,
+          top: 0x000000,      // BLACK
+          bottom: 0x000000,   // BLACK
+          hair: 0x000000,     // BLACK
+        };
     const m = (color: number) =>
       new THREE.MeshStandardMaterial({
         color,
@@ -1994,9 +2002,9 @@ export class GiftBoxScene {
     await this.tween(1400, (p) => {
       const e = easeInOut(p);
       // Arm forward/up enough to present; rose forced vertical each frame
-      boy.armL.rotation.x = lerp(0.45, -0.85, e);
+      boy.armL.rotation.x = lerp(0.45, -1.05, e);
       boy.armL.rotation.z = lerp(0.12, 0.05, e);
-      boy.elbowL.rotation.x = lerp(0.4, 0.25, e);
+      boy.elbowL.rotation.x = lerp(0.4, 0.15, e);
       boy.armR.rotation.x = lerp(0, -0.25, e);
       boy.elbowR.rotation.x = lerp(0.28, 0.35, e);
 
@@ -2017,8 +2025,8 @@ export class GiftBoxScene {
       boy.head.rotation.x = lerp(0, -0.28, e);
       boy.head.rotation.z = lerp(0, 0.04, e);
       // Keep offering arm steady while he sinks
-      boy.armL.rotation.x = -0.85;
-      boy.elbowL.rotation.x = 0.25;
+      boy.armL.rotation.x = -1.12;
+      boy.elbowL.rotation.x = 0.15;
       this.keepRoseUpright();
     });
     await this.pause(800);
