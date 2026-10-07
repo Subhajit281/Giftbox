@@ -48,7 +48,7 @@ export const ProposalOverlay: React.FC<Props> = ({ phase, getAnchor, onAnswer })
     <div className="fixed inset-0 z-30 pointer-events-none">
       {phase === 'ask' && (
         <div ref={boyRef} style={{ position: 'absolute', left: 0, top: 0, visibility: 'hidden' }}>
-          <div className="chat-bubble bubble-pop">Will you marry me? 🌹</div>
+          <div className="chat-bubble bubble-pop">I LOVE YOU SO MUCHHH, DIYA🌹</div>
         </div>
       )}
 
@@ -60,10 +60,10 @@ export const ProposalOverlay: React.FC<Props> = ({ phase, getAnchor, onAnswer })
           <div className="chat-bubble bubble-pop">
             <div className="bubble-actions">
               <button className="bubble-btn" disabled={answered} onClick={choose}>
-                Yes 💖
+                I LOVE YOU TOOOOO, SUBHAJIT🥺💖
               </button>
               <button className="bubble-btn bubble-btn-gold" disabled={answered} onClick={choose}>
-                Definitely yes 💍
+                LOVE YOU SOOO MUCHHH BABY🥰🥰😭
               </button>
             </div>
           </div>

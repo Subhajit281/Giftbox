@@ -1881,6 +1881,8 @@ export class GiftBoxScene {
     this.rose.parent.updateWorldMatrix(true, false);
     this.rose.parent.getWorldQuaternion(this.tmpQ);
     this.rose.quaternion.copy(this.tmpQ.invert());
+    const towardHer = THREE.MathUtils.degToRad(22);
+    this.rose.rotateZ(-towardHer);
   }
 
   private restArms(p: Person) {

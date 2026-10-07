@@ -35,7 +35,7 @@ export const DEFAULT_CONFIG: ExperienceConfig = {
   recipientName: 'My Favorite Person',
   creatorName: 'Subhajit',
   whatsappNumber: '916001155729',
-  whatsappMessage: "I opened all your gifts... and I couldn't stop smiling. Coming outside right now! 🥰❤️",
+  whatsappMessage: "Please write below if you liked it. Thats a small gift I thought of making for you while we are still away. Its just a beginning, I want to celebrate your birthday in much bigger ways in future🥺❤️.",
   customLetterText: `From the very first moment our paths crossed, you brought a warmth and magic into my life that nothing else could ever compare to.
 
 Every smile you share, every laugh we've had, every quiet late-night talk has become one of my most cherished memories. You are kind, beautiful, brilliant, and completely irreplaceable to me.

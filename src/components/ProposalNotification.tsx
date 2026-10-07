@@ -30,7 +30,7 @@ export const ProposalNotification: React.FC<Props> = ({ senderName, onOpen }) =>
             <span className="text-[10px] text-[#c59b27] font-semibold">• Just now</span>
           </span>
           <p className="font-serif-luxury text-base font-bold leading-snug mt-1">
-            "Someone is waiting for you outside... 💌"
+            "Heylloo darling! If you liked it then talk to me now, by clicking the notification 🥺💌"
           </p>
           <span className="text-xs text-[#8a1c35] mt-1.5 block font-semibold">Tap to see ✨</span>
         </div>
