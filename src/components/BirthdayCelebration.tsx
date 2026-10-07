@@ -10,7 +10,7 @@ const makeRng = (seed: number) => () => {
 
 const COLORS = ['#f8c7d5', '#f2cf77', '#c991ae', '#f6d38b', '#dda4bc', '#f2c15d', '#e58fa6', '#ffe3a1'];
 
-export const BirthdayCelebration: React.FC = () => {
+export const BirthdayCelebration: React.FC<{ playing?: boolean }> = ({ playing = true }) => {
   const { balloons, sparkles } = useMemo(() => {
     const r = makeRng(20);
 
@@ -46,7 +46,7 @@ export const BirthdayCelebration: React.FC = () => {
   }, []);
 
   return (
-    <div className="birthday-celebration fixed inset-0 z-[35] pointer-events-none overflow-hidden" aria-hidden="true">
+        <div className={`birthday-celebration${playing ? '' : ' is-paused'} fixed inset-0 z-[35] pointer-events-none overflow-hidden`} aria-hidden="true">
       <div className="birthday-glow" />
 
       {sparkles.map((s, i) => (

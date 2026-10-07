@@ -88,6 +88,19 @@ export class GiftBoxScene {
   private mouse = new THREE.Vector2();
   private animId: number | null = null;
   private clock = new THREE.Timer();
+  private isMobile = false;
+  private pixelRatio = 1;
+  private readonly minPixelRatio = 1;
+  private warming = false;
+  private disposed = false;
+  private lastFrameTime = 0;
+  private frameIndex = 0;
+  private sampledFrames = 0;
+  private slowFrames = 0;
+  private lastW = 0;
+  private lastH = 0;
+  private resizeRaf: number | null = null;
+  private desiredCamera = new THREE.Vector3();
 
   constructor(container: HTMLElement, callbacks: SceneCallbacks) {
     this.container = container;
@@ -105,9 +118,13 @@ export class GiftBoxScene {
     this.camera.position.copy(this.cameraTargetPos);
 
     // 3. Renderer setup
+    this.isMobile = container.clientWidth < 768;
+    this.lastW = container.clientWidth;
+    this.lastH = container.clientHeight;
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+    this.pixelRatio = Math.min(window.devicePixelRatio, this.isMobile ? 1.5 : 2);
+    this.renderer.setPixelRatio(this.pixelRatio);
     this.renderer.setSize(container.clientWidth, container.clientHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, container.clientWidth < 768 ? 1.5 : 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -173,8 +190,10 @@ export class GiftBoxScene {
     spot.angle = Math.PI / 3.8;
     spot.penumbra = 0.55;
     spot.castShadow = true;
-    spot.shadow.mapSize.width = 1024;
-    spot.shadow.mapSize.height = 1024;
+    const shadowSize = this.isMobile ? 768 : 1024;
+    spot.shadow.mapSize.set(shadowSize, shadowSize);
+    spot.shadow.camera.near = 1;
+    spot.shadow.camera.far = 24;
     spot.shadow.bias = -0.0005;
     this.scene.add(spot);
 
@@ -196,11 +215,9 @@ export class GiftBoxScene {
   private createEnvironment() {
     // Stage floor with soft warm ivory finish
     const floorGeo = new THREE.PlaneGeometry(40, 40);
-    const floorMat = new THREE.MeshStandardMaterial({
-      color: 0x180b14,
-      roughness: 0.68,
-      metalness: 0.16,
-    });
+    const floorMat = this.isMobile
+      ? new THREE.MeshLambertMaterial({ color: 0x180b14 })
+      : new THREE.MeshStandardMaterial({ color: 0x180b14, roughness: 0.68, metalness: 0.16 });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -1.15;
@@ -680,49 +697,54 @@ export class GiftBoxScene {
 
   // 3D Parabolic projectile arc throw of opened item into bin
   public launchItemIntoBin(giftId: string, onComplete?: () => void) {
-    const meshGroup = this.giftMeshes.get(giftId);
-    if (!meshGroup) {
-      if (onComplete) onComplete();
-      return;
-    }
-
-    const start = meshGroup.position.clone();
-    const target = this.binGroup.position.clone().add(new THREE.Vector3(0, 0.25, 0));
-
-    let progress = 0;
-    const duration = 1100;
-    const startTime = performance.now();
-
-    const arcStep = (now: number) => {
-      const elapsed = now - startTime;
-      progress = Math.min(1, elapsed / duration);
-
-      // Smooth easing
-      const ease = 0.5 - Math.cos(progress * Math.PI) / 2;
-      meshGroup.position.lerpVectors(start, target, ease);
-      // High parabolic arc
-      meshGroup.position.y += Math.sin(progress * Math.PI) * 1.9;
-
-      // Shrink & spin
-      const s = 1 - progress * 0.5;
-      meshGroup.scale.set(s, s, s);
-      meshGroup.rotation.y += 0.12;
-      meshGroup.rotation.x += 0.06;
-
-      if (progress < 1) {
-        requestAnimationFrame(arcStep);
-      } else {
-        meshGroup.visible = false;
-        const gift = this.giftsData.find((g) => g.id === giftId);
-        if (gift) {
-          this.addMeshToBin(giftId, gift.type, gift.accentColor);
-        }
-        if (onComplete) onComplete();
-      }
-    };
-    requestAnimationFrame(arcStep);
+  const meshGroup = this.giftMeshes.get(giftId);
+  if (!meshGroup) {
+    if (onComplete) onComplete();
+    return;
   }
 
+  const start = meshGroup.position.clone();
+  const target = this.binGroup.position
+    .clone()
+    .add(new THREE.Vector3(0, 0.25, 0));
+
+  const duration = 1100;
+  let startTime = -1;
+
+  const arcStep = (now: number) => {
+    if (startTime < 0) startTime = now;
+
+    const progress = Math.min(1, (now - startTime) / duration);
+
+    // Smooth easing
+    const ease = 0.5 - Math.cos(progress * Math.PI) / 2;
+    meshGroup.position.lerpVectors(start, target, ease);
+
+    // High parabolic arc
+    meshGroup.position.y += Math.sin(progress * Math.PI) * 1.9;
+
+    // Shrink & spin
+    const s = 1 - progress * 0.5;
+    meshGroup.scale.set(s, s, s);
+    meshGroup.rotation.y += 0.12;
+    meshGroup.rotation.x += 0.06;
+
+    if (progress < 1) {
+      requestAnimationFrame(arcStep);
+    } else {
+      meshGroup.visible = false;
+
+      const gift = this.giftsData.find((g) => g.id === giftId);
+      if (gift) {
+        this.addMeshToBin(giftId, gift.type, gift.accentColor);
+      }
+
+      if (onComplete) onComplete();
+    }
+  };
+
+  requestAnimationFrame(arcStep);
+}
   // Cute 3D Plush Walking Teddy Bear
   private createTeddyCharacter() {
     this.teddyGroup.position.set(7.5, -1.05, 0.8); // Offscreen right initially
@@ -842,6 +864,7 @@ export class GiftBoxScene {
     armR.position.y = -0.18;
     this.teddyRightArm.add(armR);
     this.teddyGroup.add(this.teddyLeftArm, this.teddyRightArm);
+    this.teddyGroup.visible = false;
   }
 
   // 3D Arched Door
@@ -893,71 +916,82 @@ export class GiftBoxScene {
   }
 
   // Trigger the 3D ribbon untying and box explosion / walls falling down
-  public startUnwrappingAnimation(onComplete?: () => void) {
-    this.isUnwrapping = true;
-    void this.isUnwrapping; // read to avoid unused warning
-    let progress = 0;
-    const duration = 1800; // ms
-    const startTime = performance.now();
+ public startUnwrappingAnimation(onComplete?: () => void) {
+  this.isUnwrapping = true;
+  void this.isUnwrapping; // read to avoid unused warning
 
-    const step = (now: number) => {
-      const elapsed = now - startTime;
-      progress = Math.min(1, elapsed / duration);
-      this.unwrapProgress = progress;
+  const duration = 1800; // ms
+  let startTime = -1;
 
-      // Phase 1: Ribbon bow unties & scales away (0 to 0.4)
-      const bowScale = Math.max(0.001, 1 - Math.min(1, progress * 2.5));
-      this.ribbonBowGroup.scale.set(bowScale, bowScale, bowScale);
-      this.ribbonBandsGroup.scale.set(bowScale, bowScale, bowScale);
+  const step = (now: number) => {
+    if (startTime < 0) startTime = now;
 
-      // Phase 2: Lid lifts up and rotates off (0.2 to 0.8)
-      if (progress > 0.2) {
-        const lidProg = (progress - 0.2) / 0.6;
-        this.boxLidGroup.position.y = 1.1 + lidProg * 2.6;
-        this.boxLidGroup.position.z = -lidProg * 1.8;
-        this.boxLidGroup.rotation.x = -lidProg * 0.8;
-        this.boxLidGroup.scale.setScalar(Math.max(0.001, 1 - lidProg * 0.7));
-      }
+    const progress = Math.min(1, (now - startTime) / duration);
+    this.unwrapProgress = progress;
 
-      // Phase 3: Walls fall down flat like explosion box (0.4 to 1.0)
-      if (progress > 0.4) {
-        const wallProg = (progress - 0.4) / 0.6;
-        // Spring easing for physical flop onto floor
-        const angle = Math.min(Math.PI / 2, wallProg * (Math.PI / 2) * 1.08);
+    // Phase 1: Ribbon bow unties & scales away (0 to 0.4)
+    const bowScale = Math.max(0.001, 1 - Math.min(1, progress * 2.5));
+    this.ribbonBowGroup.scale.set(bowScale, bowScale, bowScale);
+    this.ribbonBandsGroup.scale.set(bowScale, bowScale, bowScale);
 
-        this.wallFront.rotation.x = angle;
-        this.wallBack.rotation.x = -angle;
-        this.wallLeft.rotation.z = angle;
-        this.wallRight.rotation.z = -angle;
+    // Phase 2: Lid lifts up and rotates off (0.2 to 0.8)
+    if (progress > 0.2) {
+      const lidProg = (progress - 0.2) / 0.6;
+      this.boxLidGroup.position.y = 1.1 + lidProg * 2.6;
+      this.boxLidGroup.position.z = -lidProg * 1.8;
+      this.boxLidGroup.rotation.x = -lidProg * 0.8;
+      this.boxLidGroup.scale.setScalar(
+        Math.max(0.001, 1 - lidProg * 0.7)
+      );
+    }
 
-        // Flare interior golden light
-        this.interiorWarmLight.intensity = wallProg * 4.2;
+    // Phase 3: Walls fall down flat like explosion box (0.4 to 1.0)
+    if (progress > 0.4) {
+      const wallProg = (progress - 0.4) / 0.6;
 
-        // Show gifts emerging
-        this.giftMeshes.forEach((mesh, id) => {
-          const gift = this.giftsData.find((g) => g.id === id);
-          if (gift && !gift.isCollected) {
-            mesh.visible = true;
-            mesh.scale.setScalar(Math.min(1, wallProg * 1.1));
-          }
-        });
-      }
+      // Spring easing for physical flop onto floor
+      const angle = Math.min(
+        Math.PI / 2,
+        wallProg * (Math.PI / 2) * 1.08
+      );
 
-      if (progress < 1) {
-        requestAnimationFrame(step);
-      } else {
-        this.boxLidGroup.visible = false;
-        this.ribbonBandsGroup.visible = false;
-        // Final rest: walls flat on floor
-        this.wallFront.rotation.x = Math.PI / 2;
-        this.wallBack.rotation.x = -Math.PI / 2;
-        this.wallLeft.rotation.z = Math.PI / 2;
-        this.wallRight.rotation.z = -Math.PI / 2;
-        if (onComplete) onComplete();
-      }
-    };
-    requestAnimationFrame(step);
-  }
+      this.wallFront.rotation.x = angle;
+      this.wallBack.rotation.x = -angle;
+      this.wallLeft.rotation.z = angle;
+      this.wallRight.rotation.z = -angle;
+
+      // Flare interior golden light
+      this.interiorWarmLight.intensity = wallProg * 4.2;
+
+      // Show gifts emerging
+      this.giftMeshes.forEach((mesh, id) => {
+        const gift = this.giftsData.find((g) => g.id === id);
+
+        if (gift && !gift.isCollected) {
+          mesh.visible = true;
+          mesh.scale.setScalar(Math.min(1, wallProg * 1.1));
+        }
+      });
+    }
+
+    if (progress < 1) {
+      requestAnimationFrame(step);
+    } else {
+      this.boxLidGroup.visible = false;
+      this.ribbonBandsGroup.visible = false;
+
+      // Final rest: walls flat on floor
+      this.wallFront.rotation.x = Math.PI / 2;
+      this.wallBack.rotation.x = -Math.PI / 2;
+      this.wallLeft.rotation.z = Math.PI / 2;
+      this.wallRight.rotation.z = -Math.PI / 2;
+
+      if (onComplete) onComplete();
+    }
+  };
+
+  requestAnimationFrame(step);
+}
 
   // Pop out the mini teddy inside Gift 1
   public triggerMiniTeddyPop() {
@@ -980,12 +1014,12 @@ export class GiftBoxScene {
 
   // Teddy character walk in or out
   public setTeddyWalk(entering: boolean) {
+    if (entering) {
+      this.teddyGroup.visible = true;
+      this.teddyGroup.position.x = 7.5;
+    }
     this.teddyWalking = true;
     this.teddyDirection = entering ? 1 : -1;
-  }
-
-  public stopTeddyWalk() {
-    this.teddyWalking = false;
   }
 
   // State transitions from orchestrator
@@ -1099,7 +1133,7 @@ export class GiftBoxScene {
   };
 
   private onPointerMove = (event: PointerEvent) => {
-    this.updatePointerCoordinates(event);
+    //this.updatePointerCoordinates(event);
     if (event.pointerId !== this.activePointerId) return;
 
     const moved = Math.hypot(event.clientX - this.pointerStart.x, event.clientY - this.pointerStart.y);
@@ -1126,83 +1160,140 @@ export class GiftBoxScene {
     if (event.pointerId === this.activePointerId) this.activePointerId = null;
   };
 
-  private onResize = () => {
-    if (!this.container) return;
-    const w = this.container.clientWidth;
-    const h = this.container.clientHeight;
-    this.camera.aspect = w / h;
-    // Widen FOV on narrow (mobile portrait) screens so 3D content fits
-    this.camera.fov = w < 768 ? 70 : 45;
-    this.camera.updateProjectionMatrix();
-    this.renderer.setSize(w, h);
-    // Re-apply state to adjust camera positions for new screen size
-    this.setState(this.currentState);
+    private onResize = () => {
+    if (this.resizeRaf !== null) return;
+    this.resizeRaf = requestAnimationFrame(() => {
+      this.resizeRaf = null;
+      const w = this.container.clientWidth;
+      const h = this.container.clientHeight;
+      if (!w || !h || (w === this.lastW && h === this.lastH)) return;
+      this.lastW = w;
+      this.lastH = h;
+      const wasMobile = this.isMobile;
+      this.isMobile = w < 768;
+      this.camera.aspect = w / h;
+      this.camera.fov = this.isMobile ? 70 : 45;
+      this.camera.updateProjectionMatrix();
+      this.renderer.setSize(w, h);
+      // Only re-frame when crossing the phone/desktop breakpoint, so URL-bar resizes don't reset the user's view.
+      if (wasMobile !== this.isMobile) this.setState(this.currentState);
+    });
   };
 
-  // Main Render Loop
-  private renderLoop = (now?: number) => {
-    this.animId = requestAnimationFrame(this.renderLoop);
-    this.clock.update(now);
-    const delta = this.clock.getDelta();
-    const elapsed = this.clock.getElapsed();
+    // Compile every shader and upload every geometry while the screen is still idle (BOOT),
+  // so nothing hitches during the unwrap, gift reveal, teddy walk or door.
+  public async warmUp(): Promise<void> {
+    if (this.disposed) return;
+    this.warming = true;
+    const saved: Array<{ o: THREE.Object3D; visible: boolean; culled: boolean }> = [];
+    try {
+      await this.renderer.compileAsync(this.scene, this.camera); // current light set
+      this.scene.traverse((o) => {
+        saved.push({ o, visible: o.visible, culled: o.frustumCulled });
+        o.visible = true;            // gifts, teddy, door + its light (changes light count)
+        o.frustumCulled = false;
+      });
+      await this.renderer.compileAsync(this.scene, this.camera); // full light set
+      this.renderer.render(this.scene, this.camera);             // uploads all geometry + shadow programs
+    } finally {
+      for (const s of saved) {
+        s.o.visible = s.visible;
+        s.o.frustumCulled = s.culled;
+      }
+      if (!this.disposed) this.renderer.render(this.scene, this.camera); // overwrite the warm-up frame
+      this.warming = false;
+      this.frameIndex = 0;
+    }
+  }
 
-    // 1. Camera orbit & Lerp. Yaw has no bounds, enabling a true 360 degree rotation.
-    this.orbitYaw = THREE.MathUtils.lerp(this.orbitYaw, this.targetOrbitYaw, 0.18);
-    this.orbitPitch = THREE.MathUtils.lerp(this.orbitPitch, this.targetOrbitPitch, 0.18);
-    const horizontalRadius = this.orbitRadius * Math.cos(this.orbitPitch);
-    const desiredCamera = new THREE.Vector3(
-      this.cameraLookAt.x + horizontalRadius * Math.sin(this.orbitYaw),
+  private damp(rate: number, delta: number) {
+    return 1 - Math.exp(-rate * delta);
+  }
+
+  // Adaptive resolution: if the GPU can't hold ~40fps, step the pixel ratio down (never back up, so no flicker).
+  private sampleFrame(delta: number) {
+    if (this.frameIndex++ < 60 || this.pixelRatio <= this.minPixelRatio) return;
+    this.sampledFrames++;
+    if (delta > 0.026) this.slowFrames++;
+    if (this.sampledFrames >= 45) {
+      if (this.slowFrames > 18) {
+        this.pixelRatio = Math.max(this.minPixelRatio, this.pixelRatio - 0.25);
+        this.renderer.setPixelRatio(this.pixelRatio);
+        this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+      }
+      this.sampledFrames = 0;
+      this.slowFrames = 0;
+    }
+  }
+
+  // Main Render Loop
+    private renderLoop = (now?: number) => {
+    this.animId = requestAnimationFrame(this.renderLoop);
+    if (this.warming || this.disposed) return;
+
+    const t = now ?? performance.now();
+    if (this.isMobile && t - this.lastFrameTime < 9) return; // 120Hz phones: render at a steady 60
+    this.lastFrameTime = t;
+
+    this.clock.update(t);
+    const delta = Math.min(this.clock.getDelta(), 0.05);
+    const elapsed = this.clock.getElapsed();
+    const dt60 = delta * 60;
+
+    // 1. Camera orbit (same feel as the old 0.18 / 0.12 / 0.05 per-frame lerps, but frame-rate independent)
+    this.orbitYaw = THREE.MathUtils.lerp(this.orbitYaw, this.targetOrbitYaw, this.damp(11.9, delta));
+    this.orbitPitch = THREE.MathUtils.lerp(this.orbitPitch, this.targetOrbitPitch, this.damp(11.9, delta));
+    const hr = this.orbitRadius * Math.cos(this.orbitPitch);
+    this.desiredCamera.set(
+      this.cameraLookAt.x + hr * Math.sin(this.orbitYaw),
       this.cameraLookAt.y + this.orbitRadius * Math.sin(this.orbitPitch),
-      this.cameraLookAt.z + horizontalRadius * Math.cos(this.orbitYaw),
+      this.cameraLookAt.z + hr * Math.cos(this.orbitYaw),
     );
-    this.camera.position.lerp(desiredCamera, 0.12);
-    this.currentLookAt.lerp(this.cameraLookAt, 0.05);
+    this.camera.position.lerp(this.desiredCamera, this.damp(7.7, delta));
+    this.currentLookAt.lerp(this.cameraLookAt, this.damp(3.1, delta));
     this.camera.lookAt(this.currentLookAt);
 
-    // 2. Dust Particles floating
+    // 2. Dust particles
     if (this.particlePositions) {
       for (let i = 1; i < this.particlePositions.length; i += 3) {
-        this.particlePositions[i] += Math.sin(elapsed + i) * 0.0025;
+        this.particlePositions[i] += Math.sin(elapsed + i) * 0.0025 * dt60;
         if (this.particlePositions[i] > 5) this.particlePositions[i] = -0.5;
       }
       this.particles.geometry.attributes.position.needsUpdate = true;
     }
 
-    // 3. Subtle floating bobbing for gifts on the unfolded floor
+    // 3. Gift bobbing
     if (this.unwrapProgress >= 1) {
       let idx = 0;
       this.giftMeshes.forEach((mesh) => {
         if (mesh.visible) {
           const base = mesh.userData.basePos as THREE.Vector3;
           mesh.position.y = base.y + Math.sin(elapsed * 2.5 + idx * 0.8) * 0.035;
-          mesh.rotation.y += 0.004;
+          mesh.rotation.y += 0.004 * dt60;
           idx++;
         }
       });
     }
 
-    // 4. Teddy Character Movement
+    // 4. Teddy
     if (this.teddyWalking) {
       if (this.teddyDirection === 1) {
-        // Walking in to stop by the bin (x: 7.5 -> 3.9)
-        this.teddyGroup.position.x = THREE.MathUtils.lerp(this.teddyGroup.position.x, 3.9, 0.035);
-        this.teddyGroup.rotation.y = -Math.PI / 2; // Facing left toward bin
+        this.teddyGroup.position.x = THREE.MathUtils.lerp(this.teddyGroup.position.x, 3.9, this.damp(2.1, delta));
+        this.teddyGroup.rotation.y = -Math.PI / 2;
         const walk = Math.sin(elapsed * 12);
         this.teddyLeftLeg.rotation.x = walk * 0.45;
         this.teddyRightLeg.rotation.x = -walk * 0.45;
         this.teddyLeftArm.rotation.x = -walk * 0.45;
         this.teddyRightArm.rotation.x = walk * 0.45;
         this.teddyGroup.position.y = -1.05 + Math.abs(walk) * 0.08;
-
         if (Math.abs(this.teddyGroup.position.x - 3.9) < 0.05) {
           this.teddyWalking = false;
           this.teddyLeftLeg.rotation.x = 0;
           this.teddyRightLeg.rotation.x = 0;
-          this.teddyGroup.rotation.y = -0.4; // Facing camera & bin
+          this.teddyGroup.rotation.y = -0.4;
         }
       } else {
-        // Walking away out of the screen (x: 3.9 -> 8.5)
-        this.teddyGroup.rotation.y = Math.PI / 2; // Facing right
+        this.teddyGroup.rotation.y = Math.PI / 2;
         this.teddyGroup.position.x += delta * 2.5;
         const walk = Math.sin(elapsed * 14);
         this.teddyLeftLeg.rotation.x = walk * 0.5;
@@ -1214,35 +1305,42 @@ export class GiftBoxScene {
         }
       }
     } else if (this.currentState === 'TEDDY_QUESTION') {
-      // Cute idle breathing & head tilting
       this.teddyHead.rotation.z = Math.sin(elapsed * 2) * 0.15;
       this.teddyHead.rotation.y = Math.sin(elapsed * 1.5) * 0.2 - 0.2;
       this.teddyLeftArm.rotation.z = 0.25 + Math.sin(elapsed * 3) * 0.1;
       this.teddyRightArm.rotation.z = -0.25 - Math.sin(elapsed * 3) * 0.1;
     }
 
-    // 5. Door Opening
+    // 5. Door
     if (this.doorGroup.visible && this.isDoorOpening) {
-      this.doorOpenProgress = THREE.MathUtils.lerp(this.doorOpenProgress, 1, 0.04);
+      this.doorOpenProgress = THREE.MathUtils.lerp(this.doorOpenProgress, 1, this.damp(2.45, delta));
       this.doorHingedPanel.rotation.y = this.doorOpenProgress * (Math.PI / 2) * 0.95;
-      this.doorHandle.rotation.z = (Math.PI / 2) - this.doorOpenProgress * 0.5;
+      this.doorHandle.rotation.z = Math.PI / 2 - this.doorOpenProgress * 0.5;
       this.doorLight.intensity = this.doorOpenProgress * 8.5;
     }
 
     this.renderer.render(this.scene, this.camera);
+    this.sampleFrame(delta);
   };
-
   public destroy() {
+    this.disposed = true;
     if (this.animId !== null) cancelAnimationFrame(this.animId);
+    if (this.resizeRaf !== null) cancelAnimationFrame(this.resizeRaf);
     window.removeEventListener('resize', this.onResize);
     this.container.removeEventListener('pointerdown', this.onPointerDown);
     this.container.removeEventListener('pointermove', this.onPointerMove);
     this.container.removeEventListener('pointerup', this.onPointerUp);
     this.container.removeEventListener('pointercancel', this.onPointerCancel);
     this.clock.dispose();
-    if (this.renderer.domElement.parentNode) {
-      this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
-    }
+    this.scene.traverse((o) => {
+      const m = o as THREE.Mesh;
+      m.geometry?.dispose?.();
+      const mat = m.material as THREE.Material | THREE.Material[] | undefined;
+      if (Array.isArray(mat)) mat.forEach((x) => x.dispose());
+      else mat?.dispose?.();
+    });
     this.renderer.dispose();
+    this.renderer.forceContextLoss();
+    this.renderer.domElement.parentNode?.removeChild(this.renderer.domElement);
   }
 }

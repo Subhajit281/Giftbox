@@ -258,7 +258,6 @@ div[class*="rounded-"] {
   width: var(--sparkle-size);
   height: var(--sparkle-size);
   margin-left: calc(var(--sparkle-size) / -2);
-  filter: drop-shadow(0 0 6px rgba(255, 205, 91, 0.9));
   will-change: transform, opacity;
   animation: birthdaySparkleFlight var(--sparkle-dur, 7s) linear var(--sparkle-delay) both;
 }
@@ -270,6 +269,15 @@ div[class*="rounded-"] {
   background: #fff3bd;
   clip-path: polygon(50% 0%, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0% 50%, 39% 39%);
   animation: birthdayTwinkle var(--twinkle-dur, 0.9s) ease-in-out infinite;
+}
+
+.birthday-sparkle::after {
+  content: '';
+  position: absolute;
+  inset: -70%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 205, 91, 0.55) 0%, rgba(255, 205, 91, 0.18) 35%, transparent 65%);
 }
 
 /* Message */
@@ -291,7 +299,6 @@ div[class*="rounded-"] {
   inset: -36px -16px;
   z-index: -1;
   background: radial-gradient(ellipse at center, rgba(46, 11, 25, 0.55), transparent 70%);
-  filter: blur(14px);
 }
 
 .birthday-eyebrow {
@@ -322,7 +329,6 @@ div[class*="rounded-"] {
   -webkit-text-fill-color: transparent;
   color: transparent;
   filter: drop-shadow(0 3px 14px rgba(31, 2, 15, 0.85));
-  animation: birthdayShimmer 3s linear infinite;
 }
 
 .birthday-title-line {
@@ -398,3 +404,33 @@ div[class*="rounded-"] {
     touch-action: manipulation;
   }
 }
+
+/* Overlay isolation + paused-until-unlock */
+.birthday-celebration { contain: strict; }
+.birthday-celebration.is-paused,
+.birthday-celebration.is-paused *,
+.birthday-celebration.is-paused *::before,
+.birthday-celebration.is-paused *::after {
+  animation-play-state: paused !important;
+}
+
+.animate-float-gentle { will-change: transform; }
+
+/* Phones: 50-90px backdrop blurs are far past what's visible behind 82-96% opaque glass,
+   but they re-blur the live WebGL canvas every frame. */
+@media (hover: none) and (pointer: coarse), (max-width: 768px) {
+  .glass-panel,
+  .glass-pill,
+  div[class*="rounded-"] {
+    backdrop-filter: blur(10px) saturate(115%);
+    -webkit-backdrop-filter: blur(10px) saturate(115%);
+  }
+  /* Nested glass doubles the cost for no visible gain */
+  .glass-panel div[class*="rounded-"],
+  .glass-pill div[class*="rounded-"],
+  div[class*="rounded-"] div[class*="rounded-"] {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+

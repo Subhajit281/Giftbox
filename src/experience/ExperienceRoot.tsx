@@ -27,7 +27,8 @@ export const ExperienceRoot: React.FC = () => {
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [doorOpened, setDoorOpened] = useState(false);
-  const [isBirthdayCelebrating, setIsBirthdayCelebrating] = useState(false);
+  const [celebration, setCelebration] = useState<'idle' | 'playing' | 'done'>('idle');
+  const celebrationTimer = useRef<number | null>(null);
 
   // Initialize 3D Scene
   useEffect(() => {
@@ -35,7 +36,9 @@ export const ExperienceRoot: React.FC = () => {
 
     const scene = new GiftBoxScene(containerRef.current, {
       onBoxClick: () => {
-        setCurrentState((prev) => (prev === 'LOCKED' ? 'NAME_ENTRY' : prev));
+        setCurrentState((prev) =>
+          prev === 'LOCKED' ? 'NAME_ENTRY' : prev
+        );
       },
       onGiftClick: (giftId: string) => {
         handleSelectGift(giftId);
@@ -49,13 +52,24 @@ export const ExperienceRoot: React.FC = () => {
     scene.populateGifts(gifts);
 
     // Initial transition to LOCKED
-    const timer = setTimeout(() => {
+    let cancelled = false;
+
+    const minDelay = new Promise<void>((resolve) =>
+      window.setTimeout(resolve, 500)
+    );
+
+    Promise.all([
+      scene.warmUp().catch(() => {}),
+      minDelay,
+    ]).then(() => {
+      if (cancelled) return;
+
       setCurrentState('LOCKED');
       scene.setState('LOCKED');
-    }, 500);
+    });
 
     return () => {
-      clearTimeout(timer);
+      cancelled = true;
       scene.destroy();
     };
   }, []);
@@ -129,24 +143,23 @@ export const ExperienceRoot: React.FC = () => {
   // Handle Unwrapping: 3D Ribbons untie and box walls fall apart!
   const handleUnlockSuccess = useCallback(() => {
     transitionTo('UNLOCKED');
-    setIsBirthdayCelebrating(true);
+    setCelebration('playing');
 
     soundManager.playRibbonUntie();
     soundManager.playPaperRustle();
 
-    // Start 3D untie & explosion wall drop
-    if (sceneRef.current) {
-      sceneRef.current.startUnwrappingAnimation(() => {
-        soundManager.playLidOpening();
-        transitionTo('BOX_OPEN');
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        sceneRef.current?.startUnwrappingAnimation(() => {
+          soundManager.playLidOpening();
+          transitionTo('BOX_OPEN');
+          setTimeout(() => transitionTo('GIFT_SELECTION'), 800);
+        });
+      }),
+    );
 
-        setTimeout(() => {
-          transitionTo('GIFT_SELECTION');
-        }, 800);
-      });
-    }
-
-    window.setTimeout(() => setIsBirthdayCelebrating(false), 10000);
+    if (celebrationTimer.current) window.clearTimeout(celebrationTimer.current);
+    celebrationTimer.current = window.setTimeout(() => setCelebration('done'), 10000);
   }, [transitionTo]);
 
   // Teddy character decided sequence
@@ -198,6 +211,8 @@ export const ExperienceRoot: React.FC = () => {
 
   // Restart / Replay
   const handleRestart = useCallback(() => {
+    if (celebrationTimer.current) window.clearTimeout(celebrationTimer.current);
+    setCelebration('idle');
     const freshGifts = INITIAL_GIFTS.map((g) => ({
       ...g,
       isOpened: false,
@@ -231,7 +246,7 @@ export const ExperienceRoot: React.FC = () => {
         onToggleMusic={handleToggleMusic}
       />
 
-      {isBirthdayCelebrating && <BirthdayCelebration />}
+          {celebration !== 'done' && <BirthdayCelebration playing={celebration === 'playing'} />}
 
       {/* Initial Locked Huge Gift Box Message Overlay */}
       {currentState === 'LOCKED' && (
