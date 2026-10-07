@@ -11,9 +11,13 @@ import { GiftRevealModal } from '../components/GiftRevealModal';
 import { TeddyEndingModal } from '../components/TeddyEndingModal';
 import { FakeNotification } from '../components/FakeNotification';
 import { FinalDoorModal } from '../components/FinalDoorModal';
+import { ProposalOverlay } from '../components/ProposalOverlay';
+import { ProposalNotification } from '../components/ProposalNotification';
 import { ExperienceHUD } from '../components/ExperienceHUD';
 import { BirthdayCelebration } from '../components/BirthdayCelebration';
 import { Sparkles } from 'lucide-react';
+
+const wait = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
 
 export const ExperienceRoot: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -29,6 +33,10 @@ export const ExperienceRoot: React.FC = () => {
   const [doorOpened, setDoorOpened] = useState(false);
   const [celebration, setCelebration] = useState<'idle' | 'playing' | 'done'>('idle');
   const celebrationTimer = useRef<number | null>(null);
+  const doorOpenedRef = useRef(false);
+  const proposalRun = useRef(0);
+  const answerLock = useRef(false);
+  const [curtain, setCurtain] = useState(false);
 
   // Initialize 3D Scene
   useEffect(() => {
@@ -70,6 +78,7 @@ export const ExperienceRoot: React.FC = () => {
 
     return () => {
       cancelled = true;
+      proposalRun.current++; // cancels any running proposal sequence
       scene.destroy();
     };
   }, []);
@@ -181,16 +190,76 @@ export const ExperienceRoot: React.FC = () => {
     transitionTo('DOOR_READY');
   }, [transitionTo]);
 
-  // Door click
+  // ───── Proposal sequence ─────
+  const runProposal = useCallback(async () => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    const id = ++proposalRun.current;
+    const alive = () => proposalRun.current === id;
+
+    setCurtain(true);                       // fade to black
+    await wait(800); if (!alive()) return;
+
+    transitionTo('PROPOSAL_ENTER');
+    scene.enterProposalRoom();
+    await wait(200); if (!alive()) return;
+    setCurtain(false);                      // fade into the balloon room
+    await wait(1100); if (!alive()) return;
+
+    await scene.playProposalWalkIn();       if (!alive()) return;
+    await wait(900); if (!alive()) return;  // pause — they look at each other
+
+    await scene.playRoseAndKneel();         if (!alive()) return;
+    await wait(700); if (!alive()) return;  // beat before he asks
+
+    transitionTo('PROPOSAL_ASK');           // bubble appears…
+    void scene.burstSparkles();             // …at the exact same moment sparkles burst
+    await wait(4200); if (!alive()) return;
+
+    transitionTo('PROPOSAL_ANSWER');        // her YES / Definitely yes bubble
+  }, [transitionTo]);
+
+  const handleProposalAnswer = useCallback(async () => {
+    if (answerLock.current) return;
+    answerLock.current = true;
+    const scene = sceneRef.current;
+    const id = proposalRun.current;
+    const alive = () => proposalRun.current === id;
+    if (!scene) return;
+
+    await wait(400); if (!alive()) return;  // let her answer sink in
+    transitionTo('PROPOSAL_ACCEPTED');
+    await scene.playAcceptRose();           if (!alive()) return;
+
+    await wait(800); if (!alive()) return;  // pause before the kiss
+    transitionTo('PROPOSAL_KISS');
+    await scene.playKiss();                 if (!alive()) return;
+
+    await wait(600); if (!alive()) return;
+    transitionTo('PROPOSAL_NOTIFICATION');  // stays until she taps it
+  }, [transitionTo]);
+
+  const handleOpenWhatsApp = useCallback(() => {
+    const num = config.whatsappNumber.replace(/[^0-9]/g, '');
+    const url = `https://wa.me/${num}?text=${encodeURIComponent(config.whatsappMessage)}`;
+    const w = window.open(url, '_blank');
+    if (w) w.opener = null;
+    else window.location.href = url; // popup blocked → same-tab redirect
+  }, [config]);
+
+  const getAnchor = useCallback(
+    (who: 'boy' | 'girl') => sceneRef.current?.getHeadScreenPosition(who) ?? null,
+    [],
+  );
+
+  // Door click (ref guard: the 3D click callback holds a stale closure, so state can't be trusted here)
   const handleOpenDoor = useCallback(() => {
-    if (doorOpened) return;
+    if (doorOpenedRef.current) return;
+    doorOpenedRef.current = true;
     setDoorOpened(true);
     transitionTo('DOOR_OPENING');
-
-    setTimeout(() => {
-      transitionTo('FINAL_HANDOFF');
-    }, 1500);
-  }, [doorOpened, transitionTo]);
+    window.setTimeout(() => void runProposal(), 1700); // let the door swing open first
+  }, [transitionTo, runProposal]);
 
   // Audio toggles
   const handleToggleMute = useCallback(() => {
@@ -208,26 +277,6 @@ export const ExperienceRoot: React.FC = () => {
       setIsMusicPlaying(true);
     }
   }, [isMusicPlaying]);
-
-  // Restart / Replay
-  const handleRestart = useCallback(() => {
-    if (celebrationTimer.current) window.clearTimeout(celebrationTimer.current);
-    setCelebration('idle');
-    const freshGifts = INITIAL_GIFTS.map((g) => ({
-      ...g,
-      isOpened: false,
-      isCollected: false,
-    }));
-    setGifts(freshGifts);
-    setSelectedGiftId(null);
-    setDoorOpened(false);
-
-    if (sceneRef.current) {
-      sceneRef.current.populateGifts(freshGifts);
-    }
-
-    transitionTo('LOCKED');
-  }, [transitionTo]);
 
   const activeGift = gifts.find((g) => g.id === selectedGiftId);
 
@@ -306,17 +355,27 @@ export const ExperienceRoot: React.FC = () => {
         />
       )}
 
-      {/* Final 3D Door & WhatsApp Redirect */}
-      {(currentState === 'DOOR_READY' ||
-        currentState === 'DOOR_OPENING' ||
-        currentState === 'FINAL_HANDOFF') && (
-        <FinalDoorModal
-          config={config}
-          doorOpened={doorOpened}
-          onOpenDoor={handleOpenDoor}
-          onRestart={handleRestart}
+      {(currentState === 'DOOR_READY' || currentState === 'DOOR_OPENING') && (
+        <FinalDoorModal doorOpened={doorOpened} onOpenDoor={handleOpenDoor} />
+      )}
+
+      {(currentState === 'PROPOSAL_ASK' || currentState === 'PROPOSAL_ANSWER') && (
+        <ProposalOverlay
+          phase={currentState === 'PROPOSAL_ASK' ? 'ask' : 'answer'}
+          getAnchor={getAnchor}
+          onAnswer={handleProposalAnswer}
         />
       )}
+
+      {currentState === 'PROPOSAL_NOTIFICATION' && (
+        <ProposalNotification senderName={`${config.creatorName} ❤️`} onOpen={handleOpenWhatsApp} />
+      )}
+
+      {/* Scene-change curtain */}
+      <div
+        className="fixed inset-0 z-[60] bg-black pointer-events-none transition-opacity duration-700"
+        style={{ opacity: curtain ? 1 : 0 }}
+      />
 
     </div>
   );

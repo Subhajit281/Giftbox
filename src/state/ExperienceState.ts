@@ -22,6 +22,12 @@ export type ExperienceState =
   | 'NOTIFICATION'
   | 'DOOR_READY'
   | 'DOOR_OPENING'
+  | 'PROPOSAL_ENTER'
+  | 'PROPOSAL_ASK'
+  | 'PROPOSAL_ANSWER'
+  | 'PROPOSAL_ACCEPTED'
+  | 'PROPOSAL_KISS'
+  | 'PROPOSAL_NOTIFICATION'
   | 'FINAL_HANDOFF';
 
 export interface AppStoreState {

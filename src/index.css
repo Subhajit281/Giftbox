@@ -434,3 +434,61 @@ div[class*="rounded-"] {
   }
 }
 
+/* Proposal chat bubbles (kept free of "rounded-" class names, because the global div[class*="rounded-"] rule would override them) */
+.chat-bubble {
+  position: relative;
+  max-width: min(80vw, 300px);
+  padding: 0.75rem 1.1rem;
+  border-radius: 1.1rem;
+  background: #fff;
+  color: #2e0b19;
+  border: 1.5px solid rgba(212, 175, 55, 0.75);
+  box-shadow: 0 12px 30px rgba(20, 3, 11, 0.35);
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-weight: 700;
+  font-size: 1.2rem;
+  line-height: 1.25;
+  text-align: center;
+  pointer-events: auto;
+}
+.chat-bubble::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -8px;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-right: 1.5px solid rgba(212, 175, 55, 0.75);
+  border-bottom: 1.5px solid rgba(212, 175, 55, 0.75);
+  transform: translateX(-50%) rotate(45deg);
+}
+.bubble-pop {
+  transform-origin: 50% 100%;
+  animation: bubblePop 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+@keyframes bubblePop {
+  from { opacity: 0; transform: scale(0.4) translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+.bubble-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center; }
+.bubble-btn {
+  padding: 0.55rem 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(212, 175, 55, 0.8);
+  background: #fff0f3;
+  color: #8a1c35;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform 0.15s;
+}
+.bubble-btn:active { transform: scale(0.94); }
+.bubble-btn:disabled { opacity: 0.6; cursor: default; }
+.bubble-btn-gold {
+  background: linear-gradient(90deg, #d4af37, #f3e5ab, #d4af37);
+  color: #1c030c;
+}
+

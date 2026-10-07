@@ -2,6 +2,62 @@ import * as THREE from 'three';
 import type { GiftItem } from '../content/giftData';
 import type { ExperienceState } from '../state/ExperienceState';
 
+const ROOM_X = 80; // the proposal room lives far from the gift world, so no hiding/unhiding is needed
+const FLOOR_Y = -1.15;
+const SILHOUETTE = true; // false = coloured characters instead of dark silhouettes
+
+interface Person {
+  root: THREE.Group;
+  lean: THREE.Group;
+  /** Hip joint — swings the whole leg */
+  legL: THREE.Group;
+  legR: THREE.Group;
+  /** Knee joint — child of each leg */
+  kneeL: THREE.Group;
+  kneeR: THREE.Group;
+  /** Shoulder joint */
+  armL: THREE.Group;
+  armR: THREE.Group;
+  /** Elbow joint — child of each arm */
+  elbowL: THREE.Group;
+  elbowR: THREE.Group;
+  /** Hand anchors (rose / gestures) */
+  handL: THREE.Group;
+  handR: THREE.Group;
+  head: THREE.Group;
+}
+
+const lerp = THREE.MathUtils.lerp;
+const easeInOut = (p: number) => (p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2);
+const easeOut = (p: number) => 1 - Math.pow(1 - p, 2);
+function makeHeartGeometry(depth: number) {
+  const shape = new THREE.Shape();
+  for (let i = 0; i <= 48; i++) {
+    const t = (i / 48) * Math.PI * 2;
+    const x = (16 * Math.pow(Math.sin(t), 3)) / 16;
+    const y = (13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) / 16;
+    if (i === 0) shape.moveTo(x, y);
+    else shape.lineTo(x, y);
+  }
+  const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false });
+  geo.center();
+  return geo;
+}
+
+/** Cupped, rounded petal: base at y=0, tip at y=height. cup curls the sides inward, curl flares the tip outward. */
+function makePetalGeometry(width: number, height: number, cup: number, curl: number) {
+  const geo = new THREE.PlaneGeometry(1, 1, 8, 8);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i) + 0.5; // 0 = base, 1 = tip
+    const px = x * Math.sin(Math.PI * (0.12 + 0.76 * y)); // narrow base, wide middle, rounded tip
+    pos.setXYZ(i, px * width, y * height, -cup * Math.pow(px * 2, 2) * width + curl * y * y * height);
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
+
 export interface SceneCallbacks {
   onGiftClick: (giftId: string) => void;
   onDoorClick: () => void;
@@ -101,6 +157,18 @@ export class GiftBoxScene {
   private lastH = 0;
   private resizeRaf: number | null = null;
   private desiredCamera = new THREE.Vector3();
+  // Proposal room
+  private roomGroup = new THREE.Group();
+  private roomKeyLight!: THREE.PointLight;
+  private roomRimLight!: THREE.PointLight;
+  private boy!: Person;
+  private girl!: Person;
+  private rose!: THREE.Group;
+  private sparkles!: THREE.Points;
+  private sparkleData!: { start: Float32Array; vel: Float32Array; delay: Float32Array };
+  private orbitLocked = false;
+  private tmpV = new THREE.Vector3();
+  private tmpQ = new THREE.Quaternion();
 
   constructor(container: HTMLElement, callbacks: SceneCallbacks) {
     this.container = container;
@@ -168,6 +236,10 @@ export class GiftBoxScene {
     this.scene.add(this.binGroup);
     this.scene.add(this.teddyGroup);
     this.scene.add(this.doorGroup);
+
+    // Proposal room
+    this.createProposalRoom();
+    this.scene.add(this.roomGroup);
 
     // Event listeners
     window.addEventListener('resize', this.onResize);
@@ -1026,6 +1098,7 @@ export class GiftBoxScene {
   public setState(newState: ExperienceState) {
     this.currentState = newState;
     const isMobile = this.container.clientWidth < 768;
+    this.orbitLocked = false;
 
     switch (newState) {
       case 'BOOT':
@@ -1057,6 +1130,22 @@ export class GiftBoxScene {
         // Camera frames the bin and teddy without sending either beyond a narrow viewport.
         this.cameraTargetPos.set(isMobile ? 2.5 : 1.5, isMobile ? 2.9 : 1.8, isMobile ? 8.2 : 4.4);
         this.cameraLookAt.set(2.4, -0.1, 0.6);
+        break;
+
+      case 'PROPOSAL_ENTER':
+      case 'PROPOSAL_ASK':
+      case 'PROPOSAL_ANSWER':
+        this.orbitLocked = true;
+        this.cameraTargetPos.set(ROOM_X, isMobile ? 0.9 : 1.0, isMobile ? 4.4 : 5.2);
+        this.cameraLookAt.set(ROOM_X, 0.5, 0);
+        break;
+
+      case 'PROPOSAL_ACCEPTED':
+      case 'PROPOSAL_KISS':
+      case 'PROPOSAL_NOTIFICATION':
+        this.orbitLocked = true;
+        this.cameraTargetPos.set(ROOM_X, 0.8, 3.6); // slow push-in for the kiss
+        this.cameraLookAt.set(ROOM_X, 0.5, 0);
         break;
 
       case 'NOTIFICATION':
@@ -1139,6 +1228,7 @@ export class GiftBoxScene {
     const moved = Math.hypot(event.clientX - this.pointerStart.x, event.clientY - this.pointerStart.y);
     if (moved > 6) this.isDragging = true;
     if (!this.isDragging) return;
+    if (this.orbitLocked) return;
 
     const dx = event.clientX - this.pointerLast.x;
     const dy = event.clientY - this.pointerLast.y;
@@ -1322,6 +1412,787 @@ export class GiftBoxScene {
     this.renderer.render(this.scene, this.camera);
     this.sampleFrame(delta);
   };
+
+  // ───────────── PROPOSAL ROOM ─────────────
+
+  private tween(ms: number, fn: (p: number) => void): Promise<void> {
+    return new Promise((resolve) => {
+      let start = -1;
+      const step = (now: number) => {
+        if (this.disposed) return resolve();
+        if (start < 0) start = now;
+        const p = Math.min(1, (now - start) / ms);
+        fn(p);
+        if (p < 1) requestAnimationFrame(step);
+        else resolve();
+      };
+      requestAnimationFrame(step);
+    });
+  }
+
+  private pause(ms: number) {
+    return this.tween(ms, () => {});
+  }
+
+  private createProposalRoom() {
+    const room = this.roomGroup;
+    room.position.set(ROOM_X, 0, 0);
+    room.visible = false;
+
+    // Lights live on the scene (intensity 0 until entry) so the light count never changes → no shader recompile.
+    this.roomKeyLight = new THREE.PointLight(0xffc890, 0, 30, 1.6);
+    this.roomKeyLight.position.set(ROOM_X, 3.2, 4);
+    this.roomRimLight = new THREE.PointLight(0xff5a8a, 0, 20, 1.6);
+    this.roomRimLight.position.set(ROOM_X, 1.5, -4);
+    this.scene.add(this.roomKeyLight, this.roomRimLight);
+
+    // Floor + back wall
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(40, 40),
+      new THREE.MeshStandardMaterial({ color: 0x2a0d1a, roughness: 0.55, metalness: 0.12 }),
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = FLOOR_Y;
+    room.add(floor);
+
+    const wall = new THREE.Mesh(
+      new THREE.PlaneGeometry(40, 16),
+      new THREE.MeshStandardMaterial({ color: 0x7a2744, emissive: 0x3a0f22, roughness: 0.9 }),
+    );
+    wall.position.set(0, FLOOR_Y + 8, -7);
+    room.add(wall);
+
+    // Big glowing heart behind the couple (makes the silhouettes pop)
+    const heart = new THREE.Mesh(
+      makeHeartGeometry(0.2),
+      new THREE.MeshStandardMaterial({ color: 0xc2305c, emissive: 0xa01848, emissiveIntensity: 0.9, roughness: 0.5 }),
+    );
+    heart.scale.set(3.2, 3.2, 1);
+    heart.position.set(0, 2.0, -6.8);
+    room.add(heart);
+
+    // String lights
+    const bulbGeo = new THREE.SphereGeometry(0.06, 8, 8);
+    const bulbMat = new THREE.MeshBasicMaterial({ color: 0xffe08a });
+    for (let i = 0; i <= 24; i++) {
+      const u = i / 24;
+      const bulb = new THREE.Mesh(bulbGeo, bulbMat);
+      bulb.position.set((u - 0.5) * 18, 4.6 - Math.sin(u * Math.PI) * 1.1, -6.7);
+      room.add(bulb);
+    }
+
+    // Red balloons lying on the floor (instanced = 2 draw calls)
+    const N = 46;
+    const bodies = new THREE.InstancedMesh(
+      new THREE.SphereGeometry(0.32, 20, 16),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.22, metalness: 0.08 }),
+      N,
+    );
+    const knots = new THREE.InstancedMesh(
+      new THREE.ConeGeometry(0.05, 0.1, 8),
+      new THREE.MeshStandardMaterial({ color: 0xb3122f, roughness: 0.4 }),
+      N,
+    );
+    const palette = [0xd81b3c, 0xb3122f, 0xe8344f].map((c) => new THREE.Color(c));
+    const d = new THREE.Object3D();
+    let placed = 0;
+    let guard = 0;
+    while (placed < N && guard++ < 3000) {
+      const x = (Math.random() - 0.5) * 17;
+      const z = -5.5 + Math.random() * 8.7;
+      if (Math.abs(x) < 2.2 && z > -1.8) continue; // keep the stage clear
+      const s = 0.8 + Math.random() * 0.5;
+      d.rotation.set(0, Math.random() * Math.PI * 2, 0);
+      d.position.set(x, FLOOR_Y + 0.368 * s, z);
+      d.scale.set(s, s * 1.15, s);
+      d.updateMatrix();
+      bodies.setMatrixAt(placed, d.matrix);
+      bodies.setColorAt(placed, palette[placed % 3]);
+      d.rotation.set(Math.PI, 0, 0);
+      d.position.set(x, FLOOR_Y + 0.02, z);
+      d.scale.setScalar(s);
+      d.updateMatrix();
+      knots.setMatrixAt(placed, d.matrix);
+      placed++;
+    }
+    bodies.instanceMatrix.needsUpdate = true;
+    if (bodies.instanceColor) bodies.instanceColor.needsUpdate = true;
+    knots.instanceMatrix.needsUpdate = true;
+    bodies.frustumCulled = false;
+    knots.frustumCulled = false;
+    room.add(bodies, knots);
+
+    // Characters + rose
+    this.boy = this.createPerson('boy');
+    this.girl = this.createPerson('girl');
+    room.add(this.boy.root, this.girl.root);
+    this.rose = this.createRose();
+    this.rose.position.set(0, 0, 0.02);
+    this.rose.visible = false;
+    this.boy.handL.add(this.rose); // near-camera hand
+    this.resetPeople();
+
+    // Sparkle burst
+    const SN = 320;
+    const start = new Float32Array(SN * 3);
+    const vel = new Float32Array(SN * 3);
+    const delay = new Float32Array(SN);
+    const pos = new Float32Array(SN * 3);
+    for (let i = 0; i < SN; i++) {
+      start[i * 3] = (Math.random() - 0.5) * 9;
+      start[i * 3 + 1] = FLOOR_Y + Math.random() * 0.4;
+      start[i * 3 + 2] = -0.5 + (Math.random() - 0.5) * 4;
+      vel[i * 3] = (Math.random() - 0.5) * 0.9;
+      vel[i * 3 + 1] = 2.2 + Math.random() * 2.6;
+      vel[i * 3 + 2] = (Math.random() - 0.5) * 0.4;
+      delay[i] = Math.random() * 0.5;
+      pos[i * 3 + 1] = -100;
+    }
+    this.sparkleData = { start, vel, delay };
+    const sgeo = new THREE.BufferGeometry();
+    sgeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g = c.getContext('2d')!;
+    const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grd.addColorStop(0, 'rgba(255,255,255,1)');
+    grd.addColorStop(0.25, 'rgba(255,224,130,0.95)');
+    grd.addColorStop(1, 'rgba(255,200,80,0)');
+    g.fillStyle = grd;
+    g.fillRect(0, 0, 64, 64);
+    this.sparkles = new THREE.Points(
+      sgeo,
+      new THREE.PointsMaterial({
+        map: new THREE.CanvasTexture(c),
+        size: 0.16,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      }),
+    );
+    this.sparkles.frustumCulled = false;
+    this.sparkles.visible = false;
+    room.add(this.sparkles);
+  }
+
+  private createPerson(kind: 'boy' | 'girl'): Person {
+    const isGirl = kind === 'girl';
+    const pal = SILHOUETTE
+      ? { skin: 0x1a0a13, top: 0x14070f, bottom: 0x120610, hair: 0x080307 }
+      : isGirl
+        ? { skin: 0xf1c9a5, top: 0xd9456f, bottom: 0xd9456f, hair: 0x2a1810 }
+        : { skin: 0xf1c9a5, top: 0x2c3e66, bottom: 0x1f2a47, hair: 0x2a1810 };
+    const m = (color: number) =>
+      new THREE.MeshStandardMaterial({
+        color,
+        roughness: 0.75,
+        emissive: SILHOUETTE ? 0x1c0a14 : 0x000000,
+        emissiveIntensity: SILHOUETTE ? 0.6 : 0,
+      });
+    const skin = m(pal.skin);
+    const top = m(pal.top);
+    const bottom = m(pal.bottom);
+    const hair = m(pal.hair);
+
+    // Human proportions: longer legs, narrower waist, tapered limbs, soft asymmetry
+    const hipY = 0.92;
+    const thighLen = isGirl ? 0.42 : 0.46;
+    const shinLen = isGirl ? 0.4 : 0.44;
+    const thighR = isGirl ? 0.068 : 0.088;
+    const shinR = isGirl ? 0.052 : 0.068;
+    const upperLen = isGirl ? 0.3 : 0.32;
+    const foreLen = isGirl ? 0.27 : 0.29;
+    const armR0 = isGirl ? 0.048 : 0.056;
+
+    const root = new THREE.Group();
+    const lean = new THREE.Group();
+    root.add(lean);
+
+    const mkLeg = (x: number, side: 'L' | 'R') => {
+      const bias = side === 'L' ? 1.02 : 0.98;
+      const hip = new THREE.Group();
+      hip.position.set(x, hipY, 0);
+
+      const thigh = new THREE.Mesh(
+        new THREE.CapsuleGeometry(thighR * bias, thighLen * 0.7, 6, 10),
+        isGirl ? skin : bottom,
+      );
+      thigh.position.y = -thighLen * 0.5;
+      // Thigh thicker at top — scale taper via non-uniform scale
+      thigh.scale.set(1.08, 1, side === 'L' ? 1.02 : 0.98);
+      hip.add(thigh);
+
+      const knee = new THREE.Group();
+      knee.position.y = -thighLen;
+      const kneecap = new THREE.Mesh(new THREE.SphereGeometry(shinR * 1.05, 10, 8), isGirl ? skin : bottom);
+      knee.add(kneecap);
+
+      const shin = new THREE.Mesh(
+        new THREE.CapsuleGeometry(shinR * bias, shinLen * 0.68, 6, 10),
+        isGirl ? skin : bottom,
+      );
+      shin.position.y = -shinLen * 0.5;
+      shin.scale.set(0.95, 1, 0.95);
+      knee.add(shin);
+
+      // Ankle taper + foot with heel
+      const ankle = new THREE.Mesh(new THREE.SphereGeometry(shinR * 0.85, 8, 8), isGirl ? skin : bottom);
+      ankle.position.y = -shinLen;
+      knee.add(ankle);
+      const foot = new THREE.Mesh(
+        new THREE.BoxGeometry(shinR * 1.5, shinR * 0.55, shinR * 2.6),
+        isGirl ? skin : bottom,
+      );
+      foot.position.set(0, -shinLen - shinR * 0.1, shinR * 0.7);
+      knee.add(foot);
+
+      hip.add(knee);
+      lean.add(hip);
+      return { hip, knee };
+    };
+
+    const legLParts = mkLeg(isGirl ? -0.095 : -0.115, 'L');
+    const legRParts = mkLeg(isGirl ? 0.1 : 0.12, 'R');
+
+    // Pelvis / waist break so torso isn't one capsule
+    const pelvis = new THREE.Mesh(
+      new THREE.SphereGeometry(isGirl ? 0.14 : 0.155, 12, 10),
+      bottom,
+    );
+    pelvis.scale.set(isGirl ? 1.25 : 1.2, 0.48, isGirl ? 0.9 : 0.82);
+    pelvis.position.y = 0.95;
+    lean.add(pelvis);
+
+    const waist = new THREE.Mesh(
+      new THREE.CylinderGeometry(isGirl ? 0.1 : 0.12, isGirl ? 0.13 : 0.15, 0.18, 12),
+      top,
+    );
+    waist.position.y = 1.12;
+    lean.add(waist);
+
+    if (isGirl) {
+      const chest = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), top);
+      chest.scale.set(1.15, 0.7, 0.85);
+      chest.position.y = 1.38;
+      const dress = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.4, 0.78, 18), bottom);
+      dress.position.set(0.012, 0.62, 0);
+      dress.rotation.z = 0.045;
+      dress.scale.set(1.04, 1, 0.9);
+      lean.add(chest, dress);
+    } else {
+      const chest = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.28, 6, 12), top);
+      chest.scale.set(1.12, 1, 0.68);
+      chest.position.y = 1.35;
+      lean.add(chest);
+    }
+
+    const neck = new THREE.Mesh(
+      new THREE.CylinderGeometry(isGirl ? 0.055 : 0.065, isGirl ? 0.07 : 0.08, 0.14, 10),
+      skin,
+    );
+    neck.position.y = 1.58;
+    lean.add(neck);
+
+    const head = new THREE.Group();
+    head.position.y = 1.78;
+    const skull = new THREE.Mesh(new THREE.SphereGeometry(isGirl ? 0.185 : 0.195, 20, 16), skin);
+    skull.scale.set(0.92, 1.08, 0.98);
+    head.add(skull);
+    // Soft jaw / chin so head isn't a perfect ball
+    const jaw = new THREE.Mesh(new THREE.SphereGeometry(isGirl ? 0.1 : 0.11, 12, 10), skin);
+    jaw.scale.set(0.85, 0.55, 0.8);
+    jaw.position.set(0, -0.12, 0.02);
+    head.add(jaw);
+    const nose = new THREE.Mesh(new THREE.SphereGeometry(0.028, 8, 8), skin);
+    nose.position.set(0, -0.02, 0.185);
+    const cap = new THREE.Mesh(
+      new THREE.SphereGeometry(isGirl ? 0.2 : 0.21, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.58),
+      hair,
+    );
+    cap.position.set(0.012, 0.025, -0.025);
+    head.add(nose, cap);
+    if (isGirl) {
+      const long = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.4, 6, 10), hair);
+      long.position.set(0.025, -0.25, -0.11);
+      long.rotation.z = 0.1;
+      head.add(long);
+    }
+    lean.add(head);
+
+    const mkArm = (x: number, side: 'L' | 'R') => {
+      const bias = side === 'L' ? 1.03 : 0.97;
+      const shoulderY = isGirl ? 1.48 : 1.52;
+      const yOff = side === 'L' ? 0.018 : -0.012;
+      const shoulder = new THREE.Group();
+      shoulder.position.set(x, shoulderY + yOff, 0);
+      // Resting hang: slight outward so arms clear the torso
+      shoulder.rotation.z = side === 'L' ? 0.12 : -0.12;
+
+      const upper = new THREE.Mesh(
+        new THREE.CapsuleGeometry(armR0 * bias, upperLen * 0.62, 6, 10),
+        isGirl ? skin : top,
+      );
+      upper.position.y = -upperLen * 0.5;
+      upper.scale.set(1.05, 1, 1);
+      shoulder.add(upper);
+
+      const elbow = new THREE.Group();
+      elbow.position.y = -upperLen;
+      const elbowJoint = new THREE.Mesh(new THREE.SphereGeometry(armR0 * 1.05, 8, 8), isGirl ? skin : top);
+      elbow.add(elbowJoint);
+
+      const fore = new THREE.Mesh(
+        new THREE.CapsuleGeometry(armR0 * 0.85 * bias, foreLen * 0.62, 6, 10),
+        isGirl ? skin : top,
+      );
+      fore.position.y = -foreLen * 0.5;
+      elbow.add(fore);
+
+      const hand = new THREE.Group();
+      hand.position.y = -foreLen;
+      const palm = new THREE.Mesh(new THREE.SphereGeometry(armR0 * 1.1, 8, 8), skin);
+      palm.scale.set(0.9, 0.7, 1.25);
+      hand.add(palm);
+      elbow.add(hand);
+
+      // Natural slight elbow bend at rest
+      elbow.rotation.x = 0.28;
+
+      shoulder.add(elbow);
+      lean.add(shoulder);
+      return { shoulder, elbow, hand };
+    };
+
+    const armSpan = isGirl ? 0.24 : 0.3;
+    const armLParts = mkArm(-armSpan, 'L');
+    const armRParts = mkArm(armSpan * 1.03, 'R');
+
+    // Face each other in profile. Local +Z = toward partner.
+    root.rotation.y = isGirl ? -Math.PI / 2 : Math.PI / 2;
+    if (isGirl) root.scale.setScalar(0.92);
+
+    return {
+      root,
+      lean,
+      legL: legLParts.hip,
+      legR: legRParts.hip,
+      kneeL: legLParts.knee,
+      kneeR: legRParts.knee,
+      armL: armLParts.shoulder,
+      armR: armRParts.shoulder,
+      elbowL: armLParts.elbow,
+      elbowR: armRParts.elbow,
+      handL: armLParts.hand,
+      handR: armRParts.hand,
+      head,
+    };
+  }
+
+  private createRose(): THREE.Group {
+    // Stem along local +Y. World upright is maintained via keepRoseUpright().
+    const g = new THREE.Group();
+    const std = (color: number, emissive = 0x000000, ei = 0) =>
+      new THREE.MeshStandardMaterial({ color, emissive, emissiveIntensity: ei, roughness: 0.5, side: THREE.DoubleSide });
+    const stemMat = std(0x3f7d4a);
+    const leafMat = std(0x5fa06a);
+    const outerMat = std(0xe8383d, 0x3a0508, 0.3);
+    const midMat = std(0xcc2a30, 0x300408, 0.3);
+    const innerMat = std(0xa81a24, 0x2a0306, 0.3);
+    const coreMat = std(0x7a0f1a, 0x200205, 0.3);
+    const petalLine = new THREE.LineBasicMaterial({ color: 0x2a0508 });
+    const leafLine = new THREE.LineBasicMaterial({ color: 0x1f3d25 });
+
+    // Stem + thorns
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.013, 0.5, 8), stemMat);
+    stem.position.y = 0.25;
+    g.add(stem);
+    const thornGeo = new THREE.ConeGeometry(0.01, 0.035, 6);
+    ([[0.1, 1], [0.2, -1], [0.3, 1], [0.38, -1]] as number[][]).forEach(([y, s]) => {
+      const t = new THREE.Mesh(thornGeo, stemMat);
+      t.position.set(0.016 * s, y, 0);
+      t.rotation.z = (-s * Math.PI) / 2;
+      g.add(t);
+    });
+
+    // Leaves + sepals (pointed leaf shape with dark outline)
+    const leafShape = new THREE.Shape();
+    leafShape.moveTo(0, 0);
+    leafShape.bezierCurveTo(0.55, 0.2, 0.5, 0.75, 0, 1);
+    leafShape.bezierCurveTo(-0.5, 0.75, -0.55, 0.2, 0, 0);
+    const leafGeo = new THREE.ShapeGeometry(leafShape, 10);
+    const leafEdges = new THREE.EdgesGeometry(leafGeo);
+    const addLeaf = (y: number, yaw: number, len: number, tilt: number, wid = 0.9) => {
+      const pivot = new THREE.Group();
+      pivot.position.y = y;
+      pivot.rotation.y = yaw;
+      const holder = new THREE.Group();
+      holder.scale.set(len * wid, len, 1);
+      holder.rotation.z = -tilt;
+      holder.add(new THREE.Mesh(leafGeo, leafMat), new THREE.LineSegments(leafEdges, leafLine));
+      pivot.add(holder);
+      g.add(pivot);
+    };
+    addLeaf(0.12, 0.3, 0.17, 0.95);
+    addLeaf(0.12, 1.2, 0.13, 1.15);
+    addLeaf(0.28, 0.3 + Math.PI, 0.17, 0.95);
+    addLeaf(0.28, 0.3 + Math.PI - 0.9, 0.13, 1.15);
+    for (let i = 0; i < 5; i++) addLeaf(0.47, (i / 5) * Math.PI * 2, 0.075, 2.4, 0.3); // sepals
+
+    // Bloom: big flared outer petals → cupped inner spiral
+    const bloom = new THREE.Group();
+    bloom.position.y = 0.5;
+    const layers = [
+      { n: 5, r: 0.03,  y: 0.0,   w: 0.1,   h: 0.095, tilt: 1.05, cup: 0.35, curl: 0.35, m: outerMat, off: 0 },
+      { n: 5, r: 0.022, y: 0.015, w: 0.088, h: 0.085, tilt: 0.7,  cup: 0.5,  curl: 0.18, m: midMat,   off: 0.6 },
+      { n: 4, r: 0.015, y: 0.03,  w: 0.07,  h: 0.07, tilt: 0.38, cup: 0.7,  curl: 0.0,  m: innerMat, off: 0.3 },
+      { n: 3, r: 0.008, y: 0.042, w: 0.05,  h: 0.055, tilt: 0.12, cup: 0.9,  curl: -0.1, m: coreMat,  off: 0.9 },
+    ];
+    for (const L of layers) {
+      const geo = makePetalGeometry(L.w, L.h, L.cup, L.curl);
+      const edges = new THREE.EdgesGeometry(geo, 30); // dark border lines like the illustration
+      for (let i = 0; i < L.n; i++) {
+        const pivot = new THREE.Group();
+        pivot.position.y = L.y;
+        pivot.rotation.y = L.off + (i / L.n) * Math.PI * 2;
+        const holder = new THREE.Group();
+        holder.position.z = L.r;
+        holder.rotation.x = L.tilt;
+        holder.add(new THREE.Mesh(geo, L.m), new THREE.LineSegments(edges, petalLine));
+        pivot.add(holder);
+        bloom.add(pivot);
+      }
+    }
+    const bud = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 8), coreMat);
+    bud.position.y = 0.04;
+    bud.scale.set(1, 1.2, 1);
+    bloom.add(bud);
+    g.add(bloom);
+
+    const wrap = new THREE.Group();
+    wrap.add(g);
+    wrap.scale.setScalar(1.15);
+    return wrap;
+  }
+
+  /** Keep the rose stem world-vertical (90° upright) regardless of hand pose. */
+  private keepRoseUpright() {
+    if (!this.rose?.visible || !this.rose.parent) return;
+    this.rose.parent.updateWorldMatrix(true, false);
+    this.rose.parent.getWorldQuaternion(this.tmpQ);
+    this.rose.quaternion.copy(this.tmpQ.invert());
+  }
+
+  private restArms(p: Person) {
+    p.armL.rotation.set(0, 0, 0.12);
+    p.armR.rotation.set(0, 0, -0.12);
+    p.elbowL.rotation.set(0.28, 0, 0);
+    p.elbowR.rotation.set(0.28, 0, 0);
+  }
+
+  private resetPersonPose(p: Person, x: number, z = 0) {
+    p.root.position.set(x, FLOOR_Y, z);
+    p.lean.position.set(0, 0, 0);
+    p.lean.rotation.set(0, 0, 0);
+    [p.legL, p.legR, p.kneeL, p.kneeR, p.head].forEach((o) => o.rotation.set(0, 0, 0));
+    this.restArms(p);
+  }
+
+  private resetPeople() {
+    const startX = this.isMobile ? 3.8 : 6.2;
+    // Slight Z offset so silhouettes don't occupy the exact same plane (helps the kiss)
+    this.resetPersonPose(this.boy, -startX, 0.05);
+    this.resetPersonPose(this.girl, startX, -0.05);
+    // Near hand tucked behind his back (rose hidden)
+    this.boy.armL.rotation.x = 0.45;
+    this.boy.elbowL.rotation.x = 0.4;
+    this.rose.visible = false;
+  }
+
+  /** Call after setState('PROPOSAL_ENTER') while the screen is black. */
+  public enterProposalRoom() {
+    this.roomGroup.visible = true;
+    this.roomKeyLight.intensity = 22;
+    this.roomRimLight.intensity = 16;
+    this.resetPeople();
+    // snap the camera (don't sweep 80 units across the world)
+    this.camera.position.copy(this.cameraTargetPos);
+    this.currentLookAt.copy(this.cameraLookAt);
+  }
+
+  public async playProposalWalkIn() {
+    const { boy, girl } = this;
+    const startX = this.isMobile ? 3.8 : 6.2;
+    const stopX = 0.72;
+    const dur = 6800;
+    await this.tween(dur, (p) => {
+      const e = easeOut(p);
+      boy.root.position.x = lerp(-startX, -stopX, e);
+      girl.root.position.x = lerp(startX, stopX, e);
+      const t = (p * dur) / 1000;
+      const fade = Math.min(1, (1 - p) * 4);
+      const amp = 0.38 * fade;
+      // Slower gait; forward = negative Rx
+      const pb = t * 6.4;
+      const pg = t * 6.4 + 0.9;
+      const thighB = Math.sin(pb) * amp;
+      const thighG = Math.sin(pg) * amp;
+      boy.legL.rotation.x = -thighB;
+      boy.legR.rotation.x = thighB;
+      boy.kneeL.rotation.x = Math.max(0, -Math.sin(pb)) * 0.8 * fade + 0.06 * fade;
+      boy.kneeR.rotation.x = Math.max(0, Math.sin(pb)) * 0.8 * fade + 0.06 * fade;
+
+      girl.legL.rotation.x = -thighG;
+      girl.legR.rotation.x = thighG;
+      girl.kneeL.rotation.x = Math.max(0, -Math.sin(pg)) * 0.8 * fade + 0.06 * fade;
+      girl.kneeR.rotation.x = Math.max(0, Math.sin(pg)) * 0.8 * fade + 0.06 * fade;
+
+      // Pendulum arm swing — hang down, swing forward/back (never raised high)
+      const armAmp = 0.4 * fade;
+      boy.armR.rotation.x = Math.sin(pb) * armAmp;
+      boy.armR.rotation.z = -0.12;
+      boy.elbowR.rotation.x = 0.35 + Math.max(0, -Math.sin(pb)) * 0.25;
+      // Near arm still mostly down/back (hiding rose) with a small pendulum
+      boy.armL.rotation.x = 0.35 + Math.sin(pb) * 0.12 * fade;
+      boy.armL.rotation.z = 0.12;
+      boy.elbowL.rotation.x = 0.4;
+
+      girl.armL.rotation.x = -Math.sin(pg) * armAmp;
+      girl.armL.rotation.z = 0.12;
+      girl.armR.rotation.x = Math.sin(pg) * armAmp;
+      girl.armR.rotation.z = -0.12;
+      girl.elbowL.rotation.x = 0.32 + Math.max(0, Math.sin(pg)) * 0.22;
+      girl.elbowR.rotation.x = 0.32 + Math.max(0, -Math.sin(pg)) * 0.22;
+
+      boy.lean.rotation.z = Math.sin(pb) * 0.035 * fade;
+      girl.lean.rotation.z = Math.sin(pg) * 0.04 * fade;
+      boy.lean.rotation.y = Math.sin(pb) * 0.025 * fade;
+      girl.lean.rotation.y = Math.sin(pg) * 0.025 * fade;
+
+      boy.root.position.y = FLOOR_Y + Math.max(0, Math.sin(pb * 2)) * 0.028 * fade;
+      girl.root.position.y = FLOOR_Y + Math.max(0, Math.sin(pg * 2)) * 0.028 * fade;
+    });
+    [boy, girl].forEach((p) => {
+      [p.legL, p.legR, p.kneeL, p.kneeR].forEach((o) => o.rotation.set(0, 0, 0));
+      p.lean.rotation.set(0, 0, 0);
+      p.root.position.y = FLOOR_Y;
+      this.restArms(p);
+    });
+    boy.armL.rotation.x = 0.45;
+    boy.elbowL.rotation.x = 0.4;
+  }
+
+  /** He pulls out the rose, she gasps, he drops to one knee. */
+  public async playRoseAndKneel() {
+    const { boy, girl } = this;
+    await this.pause(900);
+    this.rose.visible = true;
+    this.keepRoseUpright();
+    // Offer rose upright + her asymmetric hands-to-face gasp
+    await this.tween(1400, (p) => {
+      const e = easeInOut(p);
+      // Arm forward/up enough to present; rose forced vertical each frame
+      boy.armL.rotation.x = lerp(0.45, -0.85, e);
+      boy.armL.rotation.z = lerp(0.12, 0.05, e);
+      boy.elbowL.rotation.x = lerp(0.4, 0.25, e);
+      boy.armR.rotation.x = lerp(0, -0.25, e);
+      boy.elbowR.rotation.x = lerp(0.28, 0.35, e);
+
+      girl.head.rotation.x = lerp(0, 0.08, e);
+      girl.head.rotation.z = lerp(0, -0.06, e);
+      this.keepRoseUpright();
+    });
+    await this.pause(600);
+    // Classic proposal kneel
+    await this.tween(1800, (p) => {
+      const e = easeInOut(p);
+      boy.lean.position.y = lerp(0, -0.48, e);
+      boy.lean.rotation.x = lerp(0, 0.12, e);
+      boy.legL.rotation.x = lerp(0, -1.45, e);
+      boy.kneeL.rotation.x = lerp(0, 1.5, e);
+      boy.legR.rotation.x = lerp(0, 0.12, e);
+      boy.kneeR.rotation.x = lerp(0, 1.65, e);
+      boy.head.rotation.x = lerp(0, -0.28, e);
+      boy.head.rotation.z = lerp(0, 0.04, e);
+      // Keep offering arm steady while he sinks
+      boy.armL.rotation.x = -0.85;
+      boy.elbowL.rotation.x = 0.25;
+      this.keepRoseUpright();
+    });
+    await this.pause(800);
+  }
+
+  /** Sparkles fly bottom → top. */
+  public async burstSparkles() {
+    const { start, vel, delay } = this.sparkleData;
+    const attr = this.sparkles.geometry.attributes.position as THREE.BufferAttribute;
+    const mat = this.sparkles.material as THREE.PointsMaterial;
+    const total = 3600;
+    this.sparkles.visible = true;
+    mat.opacity = 1;
+    await this.tween(total, (p) => {
+      const t = (p * total) / 1000;
+      for (let i = 0; i < delay.length; i++) {
+        const lt = t - delay[i];
+        if (lt < 0) {
+          attr.setXYZ(i, 0, -100, 0);
+          continue;
+        }
+        attr.setXYZ(
+          i,
+          start[i * 3] + vel[i * 3] * lt,
+          start[i * 3 + 1] + vel[i * 3 + 1] * lt - 0.25 * lt * lt,
+          start[i * 3 + 2] + vel[i * 3 + 2] * lt,
+        );
+      }
+      attr.needsUpdate = true;
+      mat.opacity = p < 0.65 ? 1 : 1 - (p - 0.65) / 0.35;
+    });
+    this.sparkles.visible = false;
+  }
+
+  /** She says yes: she takes the rose from his hand. */
+  public async playAcceptRose() {
+    const { boy, girl, rose } = this;
+    await this.pause(500);
+    await this.tween(1300, (p) => {
+      const e = easeInOut(p);
+      girl.armR.rotation.x = lerp(0, -0.9, e);
+      girl.elbowR.rotation.x = lerp(0.28, 0.5, e);
+      girl.head.rotation.x = lerp(0.08, 0, e);
+      girl.head.rotation.z = lerp(-0.06, 0, e);
+      this.keepRoseUpright();
+    });
+    girl.handR.attach(rose);
+    const p0 = rose.position.clone();
+    await this.tween(900, (p) => {
+      const e = easeInOut(p);
+      rose.position.set(lerp(p0.x, 0, e), lerp(p0.y, 0, e), lerp(p0.z, 0, e));
+      boy.armL.rotation.x = lerp(-0.85, -0.15, e);
+      boy.elbowL.rotation.x = lerp(0.25, 0.3, e);
+      girl.armR.rotation.x = lerp(-0.9, -0.55, e);
+      this.keepRoseUpright();
+    });
+    await this.pause(700);
+  }
+
+  /** He stands up, they step close and kiss. Hearts float up. */
+  public async playKiss() {
+    const { boy, girl } = this;
+
+    type ArmPose = { aL: number; zL: number; eL: number; aR: number; zR: number; eR: number };
+    const setArms = (p: Person, a: ArmPose, b: ArmPose, e: number) => {
+      p.armL.rotation.x = lerp(a.aL, b.aL, e);
+      p.armL.rotation.z = lerp(a.zL, b.zL, e);
+      p.elbowL.rotation.x = lerp(a.eL, b.eL, e);
+      p.armR.rotation.x = lerp(a.aR, b.aR, e);
+      p.armR.rotation.z = lerp(a.zR, b.zR, e);
+      p.elbowR.rotation.x = lerp(a.eR, b.eR, e);
+    };
+    // Poses at the end of playAcceptRose → arms opening → arms wrapped around the partner
+    const boyStart: ArmPose = { aL: -0.15, zL: 0.12, eL: 0.3, aR: -0.25, zR: -0.12, eR: 0.35 };
+    const girlStart: ArmPose = { aL: 0, zL: 0.12, eL: 0.28, aR: -0.55, zR: -0.12, eR: 0.5 };
+    const open: ArmPose = { aL: -0.5, zL: 0.3, eL: -0.4, aR: -0.5, zR: -0.3, eR: -0.4 };
+    const boyHug: ArmPose = { aL: -0.95, zL: 0.6, eL: -0.9, aR: -0.85, zR: -0.55, eR: -0.9 };
+    const girlHug: ArmPose = { aL: -0.95, zL: 0.6, eL: -0.9, aR: -0.75, zR: -0.5, eR: -0.6 }; // rose hand a bit lower
+
+    // 1. Stand up from the kneel (stays where he knelt)
+    await this.tween(1600, (p) => {
+      const e = easeInOut(p);
+      boy.lean.position.y = lerp(-0.48, 0, e);
+      boy.lean.rotation.x = lerp(0.12, 0, e);
+      boy.legL.rotation.x = lerp(-1.45, 0, e);
+      boy.kneeL.rotation.x = lerp(1.5, 0, e);
+      boy.legR.rotation.x = lerp(0.12, 0, e);
+      boy.kneeR.rotation.x = lerp(1.65, 0, e);
+      boy.head.rotation.x = lerp(-0.28, 0, e);
+      boy.head.rotation.z = lerp(0.04, 0, e);
+      this.keepRoseUpright();
+    });
+    await this.pause(400);
+
+    // 2. One step each toward the other, arms opening
+    await this.tween(1500, (p) => {
+      const e = easeInOut(p);
+      boy.root.position.x = lerp(-0.72, -0.2, e);
+      girl.root.position.x = lerp(0.72, 0.2, e);
+      const a = Math.sin(Math.min(1, p * 2) * Math.PI);        // first half: one leg steps
+      const b = p > 0.5 ? Math.sin((p - 0.5) * 2 * Math.PI) : 0; // second half: other leg follows
+      boy.legL.rotation.x = -a * 0.5;
+      boy.kneeL.rotation.x = a * 0.6;
+      boy.legR.rotation.x = -b * 0.5;
+      boy.kneeR.rotation.x = b * 0.6;
+      girl.legR.rotation.x = -a * 0.45;
+      girl.kneeR.rotation.x = a * 0.55;
+      girl.legL.rotation.x = -b * 0.45;
+      girl.kneeL.rotation.x = b * 0.55;
+      setArms(boy, boyStart, open, e);
+      setArms(girl, girlStart, open, e);
+      this.keepRoseUpright();
+    });
+
+    // 3. Both wrap their arms around each other, lean in and kiss
+    this.floatHearts();
+    await this.tween(2000, (p) => {
+      const e = easeInOut(p);
+      setArms(boy, open, boyHug, e);
+      setArms(girl, open, girlHug, e);
+      boy.lean.rotation.x = lerp(0, 0.06, e);
+      girl.lean.rotation.x = lerp(0, 0.03, e);
+      girl.root.position.y = FLOOR_Y + 0.04 * e; // tiny tiptoe to reach him
+      boy.head.rotation.x = lerp(0, 0.2, e);
+      boy.head.rotation.z = lerp(0, 0.06, e);
+      girl.head.rotation.x = lerp(0, -0.14, e);
+      girl.head.rotation.z = lerp(0, -0.06, e);
+      this.keepRoseUpright();
+    });
+    await this.pause(2800);
+  }
+
+  private floatHearts() {
+    const geo = makeHeartGeometry(0.05);
+    const items = Array.from({ length: 9 }, (_, i) => {
+      const mat = new THREE.MeshBasicMaterial({ color: i % 2 ? 0xff5c8a : 0xff2e63, transparent: true, opacity: 0 });
+      const mesh = new THREE.Mesh(geo, mat);
+      const s = 0.09 + Math.random() * 0.08;
+      mesh.scale.set(s, s, s);
+      const x0 = (Math.random() - 0.5) * 0.9;
+      const y0 = 0.4 + Math.random() * 0.4;
+      mesh.position.set(x0, y0, 0.3 + Math.random() * 0.3);
+      this.roomGroup.add(mesh);
+      return { mesh, mat, x0, y0, delay: Math.random() * 0.5, speed: 0.5 + Math.random() * 0.4, sway: Math.random() * 6 };
+    });
+    void this.tween(3200, (p) => {
+      const t = p * 3.2;
+      items.forEach((it) => {
+        const lt = Math.max(0, t - it.delay);
+        it.mesh.position.y = it.y0 + lt * it.speed;
+        it.mesh.position.x = it.x0 + Math.sin(lt * 2 + it.sway) * 0.12;
+        it.mat.opacity = lt <= 0 ? 0 : Math.min(1, lt * 3) * Math.max(0, 1 - lt / 2.4);
+      });
+    }).then(() => {
+      items.forEach((it) => {
+        this.roomGroup.remove(it.mesh);
+        it.mat.dispose();
+      });
+      geo.dispose();
+    });
+  }
+
+  /** Screen-space position above a character's head, for the HTML chat bubbles. */
+  public getHeadScreenPosition(who: 'boy' | 'girl') {
+    const p = who === 'boy' ? this.boy : this.girl;
+    if (!p) return null;
+    p.head.getWorldPosition(this.tmpV);
+    this.tmpV.y += 0.4;
+    this.tmpV.project(this.camera);
+    if (this.tmpV.z > 1) return null;
+    return {
+      x: (this.tmpV.x * 0.5 + 0.5) * this.container.clientWidth,
+      y: (-this.tmpV.y * 0.5 + 0.5) * this.container.clientHeight,
+    };
+  }
+
   public destroy() {
     this.disposed = true;
     if (this.animId !== null) cancelAnimationFrame(this.animId);
