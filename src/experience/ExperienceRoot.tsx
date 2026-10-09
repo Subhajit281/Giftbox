@@ -6,7 +6,6 @@ import { INITIAL_GIFTS } from '../content/giftData';
 import type { GiftItem, ExperienceConfig } from '../content/giftData';
 import { soundManager } from '../audio/SoundManager';
 
-import { LockPromptModal } from '../components/LockPromptModal';
 import { GiftRevealModal } from '../components/GiftRevealModal';
 import { TeddyEndingModal } from '../components/TeddyEndingModal';
 import { FakeNotification } from '../components/FakeNotification';
@@ -15,6 +14,9 @@ import { ProposalOverlay } from '../components/ProposalOverlay';
 import { ProposalNotification } from '../components/ProposalNotification';
 import { ExperienceHUD } from '../components/ExperienceHUD';
 import { BirthdayCelebration } from '../components/BirthdayCelebration';
+import { BirthdayCeremony } from '../components/BirthdayCeremony';
+import { EntryDoorNotification } from '../components/EntryDoorNotification';
+import { LoveAtmosphere } from '../components/LoveAtmosphere';
 import { Sparkles } from 'lucide-react';
 
 const wait = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
@@ -30,11 +32,14 @@ export const ExperienceRoot: React.FC = () => {
   const [config] = useState<ExperienceConfig>(loadSavedConfig());
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
-  const [doorOpened, setDoorOpened] = useState(false);
+  const [proposalDoorOpened, setProposalDoorOpened] = useState(false);
+  const [entryDoorOpened, setEntryDoorOpened] = useState(false);
+  const [birthdayPhase, setBirthdayPhase] = useState<'countdown' | 'wish' | 'cutting' | null>(null);
   const [celebration, setCelebration] = useState<'idle' | 'playing' | 'done'>('idle');
-  const celebrationTimer = useRef<number | null>(null);
-  const doorOpenedRef = useRef(false);
+  const proposalDoorOpenedRef = useRef(false);
+  const entryDoorOpenedRef = useRef(false);
   const proposalRun = useRef(0);
+  const birthdayRun = useRef(0);
   const answerLock = useRef(false);
   const [curtain, setCurtain] = useState(false);
 
@@ -43,23 +48,17 @@ export const ExperienceRoot: React.FC = () => {
     if (!containerRef.current) return;
 
     const scene = new GiftBoxScene(containerRef.current, {
-      onBoxClick: () => {
-        setCurrentState((prev) =>
-          prev === 'LOCKED' ? 'NAME_ENTRY' : prev
-        );
-      },
+      onBoxClick: () => {},
       onGiftClick: (giftId: string) => {
         handleSelectGift(giftId);
       },
-      onDoorClick: () => {
-        handleOpenDoor();
-      },
+      onDoorClick: () => {},
     });
 
     sceneRef.current = scene;
     scene.populateGifts(gifts);
 
-    // Initial transition to LOCKED
+    // The story now begins at the front door, not at the gift box.
     let cancelled = false;
 
     const minDelay = new Promise<void>((resolve) =>
@@ -72,8 +71,8 @@ export const ExperienceRoot: React.FC = () => {
     ]).then(() => {
       if (cancelled) return;
 
-      setCurrentState('LOCKED');
-      scene.setState('LOCKED');
+      setCurrentState('ENTRY_DOOR');
+      scene.setState('ENTRY_DOOR');
     });
 
     return () => {
@@ -149,10 +148,9 @@ export const ExperienceRoot: React.FC = () => {
     }
   }, [selectedGiftId, transitionTo]);
 
-  // Handle Unwrapping: 3D Ribbons untie and box walls fall apart!
-  const handleUnlockSuccess = useCallback(() => {
+  // The gift room keeps the original unfolding sequence, without a second name prompt.
+  const handleGiftUnwrap = useCallback(() => {
     transitionTo('UNLOCKED');
-    setCelebration('playing');
 
     soundManager.playRibbonUntie();
     soundManager.playPaperRustle();
@@ -167,8 +165,49 @@ export const ExperienceRoot: React.FC = () => {
       }),
     );
 
-    if (celebrationTimer.current) window.clearTimeout(celebrationTimer.current);
-    celebrationTimer.current = window.setTimeout(() => setCelebration('done'), 10000);
+  }, [transitionTo]);
+
+  const handleCountdownComplete = useCallback(() => {
+    const id = ++birthdayRun.current;
+    setBirthdayPhase('wish');
+    transitionTo('BIRTHDAY_WISH');
+    setCelebration('playing');
+
+    window.setTimeout(() => {
+      if (birthdayRun.current !== id) return;
+      setCelebration('done');
+      setBirthdayPhase('cutting');
+      transitionTo('CAKE_CUTTING');
+
+      window.setTimeout(() => {
+        if (birthdayRun.current !== id) return;
+        setBirthdayPhase(null);
+        transitionTo('GIFT_DOOR_READY');
+      }, 3400);
+    }, 3100);
+  }, [transitionTo]);
+
+  const handleEntryDoor = useCallback(async () => {
+    if (entryDoorOpenedRef.current) return;
+    entryDoorOpenedRef.current = true;
+    setEntryDoorOpened(true);
+    transitionTo('ENTRY_DOOR_OPENING');
+    await wait(1150);
+    setCurtain(true);
+    await wait(560);
+    sceneRef.current?.enterBirthdayRoom();
+    setBirthdayPhase('countdown');
+    transitionTo('BIRTHDAY_COUNTDOWN');
+    setCurtain(false);
+  }, [transitionTo]);
+
+  const handleGiftDoor = useCallback(async () => {
+    transitionTo('GIFT_TRANSITION');
+    setCurtain(true);
+    await wait(620);
+    sceneRef.current?.leaveBirthdayRoom();
+    transitionTo('GIFT_READY');
+    setCurtain(false);
   }, [transitionTo]);
 
   // Teddy character decided sequence
@@ -202,6 +241,7 @@ export const ExperienceRoot: React.FC = () => {
 
     transitionTo('PROPOSAL_ENTER');
     scene.enterProposalRoom();
+    soundManager.playPlaylist('proposal');
     await wait(200); if (!alive()) return;
     setCurtain(false);                      // fade into the balloon room
     await wait(1100); if (!alive()) return;
@@ -252,11 +292,14 @@ export const ExperienceRoot: React.FC = () => {
     [],
   );
 
-  // Door click (ref guard: the 3D click callback holds a stale closure, so state can't be trusted here)
-  const handleOpenDoor = useCallback(() => {
-    if (doorOpenedRef.current) return;
-    doorOpenedRef.current = true;
-    setDoorOpened(true);
+  // Final door click (ref guard prevents a double tap from replaying the proposal).
+  const handleProposalDoor = useCallback(() => {
+    if (proposalDoorOpenedRef.current) return;
+    proposalDoorOpenedRef.current = true;
+    // This is a direct tap. Priming here keeps the chosen proposal song permitted
+    // when the room fades in a moment later on mobile browsers.
+    soundManager.primePlaylist('proposal');
+    setProposalDoorOpened(true);
     transitionTo('DOOR_OPENING');
     window.setTimeout(() => void runProposal(), 1700); // let the door swing open first
   }, [transitionTo, runProposal]);
@@ -281,9 +324,10 @@ export const ExperienceRoot: React.FC = () => {
   const activeGift = gifts.find((g) => g.id === selectedGiftId);
 
   return (
-    <div className="relative w-full h-[100dvh] min-h-[100svh] bg-[#fbf7f2] overflow-hidden select-none">
+    <div className="relative w-full h-[100dvh] min-h-[100svh] bg-[#fbf7f2] overflow-hidden select-none experience-shell">
       {/* 3D WebGL Canvas */}
       <div ref={containerRef} className="absolute inset-0 z-0 touch-none" />
+      <LoveAtmosphere />
 
       {/* Experience HUD */}
       <ExperienceHUD
@@ -295,38 +339,58 @@ export const ExperienceRoot: React.FC = () => {
         onToggleMusic={handleToggleMusic}
       />
 
-          {celebration !== 'done' && <BirthdayCelebration playing={celebration === 'playing'} />}
+      {celebration === 'playing' && <BirthdayCelebration recipientName={config.recipientName} />}
 
-      {/* Initial Locked Huge Gift Box Message Overlay */}
-      {currentState === 'LOCKED' && (
+      {/* The opening invitation remains until she opens the front door. */}
+      {currentState === 'ENTRY_DOOR' && (
+        <>
+          <EntryDoorNotification senderName={`${config.creatorName} ❤️`} message="Tap the door to open it, baby." />
+          <FinalDoorModal
+            doorOpened={entryDoorOpened}
+            onOpenDoor={handleEntryDoor}
+            eyebrow="A birthday surprise is inside"
+            title="Open the door"
+          />
+        </>
+      )}
+
+      {birthdayPhase && (
+        <BirthdayCeremony phase={birthdayPhase} onCountdownComplete={handleCountdownComplete} />
+      )}
+
+      {currentState === 'GIFT_DOOR_READY' && (
+        <>
+          <EntryDoorNotification senderName={`${config.creatorName} ❤️`} message="Tap the door to see what I kept for you in the next room." />
+          <FinalDoorModal
+            doorOpened={false}
+            onOpenDoor={handleGiftDoor}
+            eyebrow="One more little surprise"
+            title="Go to the gift room"
+          />
+        </>
+      )}
+
+      {/* The gift journey starts here, after the birthday room. */}
+      {currentState === 'GIFT_READY' && (
         <div
-          onClick={() => transitionTo('NAME_ENTRY')}
+          onClick={handleGiftUnwrap}
           className="fixed inset-0 z-20 flex flex-col items-center justify-center p-4 cursor-pointer pointer-events-auto"
         >
           <div className="glass-panel w-full max-w-sm py-5 px-6 sm:px-10 rounded-3xl border border-[#d4af37]/50 shadow-2xl animate-float-gentle text-center space-y-2">
             <span className="text-xs uppercase tracking-widest text-[#8a1c35] font-semibold">
-              A Special Present For You
+              The next room was worth the wait
             </span>
             <h1 className="font-serif-luxury text-2xl sm:text-3xl font-bold text-[#2e0b19]">
-              Tied With Love
+              A Gift, Tied With Love
             </h1>
             <div className="pt-2">
-              <span className="py-2.5 px-6 rounded-full bg-gradient-to-r from-[#d4af37] via-[#f3e5ab] to-[#d4af37] text-[#1c030c] font-semibold text-sm shadow-lg flex items-center justify-center gap-2">
+              <span className="premium-gold-cta py-2.5 px-6 rounded-full bg-gradient-to-r from-[#d4af37] via-[#f3e5ab] to-[#d4af37] text-[#1c030c] font-semibold text-sm shadow-lg flex items-center justify-center gap-2">
                 <Sparkles className="w-4 h-4 text-[#380b18]" />
                 <span>Tap to Unwrap</span>
               </span>
             </div>
           </div>
         </div>
-      )}
-
-      {/* Name Input & Verification Modal */}
-      {currentState === 'NAME_ENTRY' && (
-        <LockPromptModal
-          expectedName={config.unlockName}
-          onSuccess={handleUnlockSuccess}
-          onClose={() => transitionTo('LOCKED')}
-        />
       )}
 
       {/* Detailed Interactive Gift Modal */}
@@ -356,7 +420,7 @@ export const ExperienceRoot: React.FC = () => {
       )}
 
       {(currentState === 'DOOR_READY' || currentState === 'DOOR_OPENING') && (
-        <FinalDoorModal doorOpened={doorOpened} onOpenDoor={handleOpenDoor} />
+        <FinalDoorModal doorOpened={proposalDoorOpened} onOpenDoor={handleProposalDoor} />
       )}
 
       {(currentState === 'PROPOSAL_ASK' || currentState === 'PROPOSAL_ANSWER') && (

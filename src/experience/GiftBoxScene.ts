@@ -3,6 +3,7 @@ import type { GiftItem } from '../content/giftData';
 import type { ExperienceState } from '../state/ExperienceState';
 
 const ROOM_X = 80; // the proposal room lives far from the gift world, so no hiding/unhiding is needed
+const BIRTHDAY_ROOM_X = 40;
 const FLOOR_Y = -1.15;
 const SILHOUETTE = true; // false = coloured characters instead of dark silhouettes
 
@@ -116,6 +117,10 @@ export class GiftBoxScene {
   private doorHandle!: THREE.Mesh;
   private doorLight!: THREE.PointLight;
 
+  // Birthday room shown before the gift journey.
+  private birthdayRoomGroup = new THREE.Group();
+  private birthdayExitDoor = new THREE.Group();
+
   // State & Camera targets
   private currentState: ExperienceState = 'BOOT';
   private cameraTargetPos: THREE.Vector3 = new THREE.Vector3(0, 2.2, 5.8);
@@ -161,6 +166,8 @@ export class GiftBoxScene {
   private roomGroup = new THREE.Group();
   private roomKeyLight!: THREE.PointLight;
   private roomRimLight!: THREE.PointLight;
+  private proposalHeart!: THREE.Mesh<THREE.ExtrudeGeometry, THREE.MeshStandardMaterial>;
+  private proposalHalo!: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial>;
   private boy!: Person;
   private girl!: Person;
   private rose!: THREE.Group;
@@ -190,7 +197,8 @@ export class GiftBoxScene {
     this.lastW = container.clientWidth;
     this.lastH = container.clientHeight;
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
-    this.pixelRatio = Math.min(window.devicePixelRatio, this.isMobile ? 1.5 : 2);
+    // Phones gain much more from a steady frame rate than from imperceptible extra pixels.
+    this.pixelRatio = Math.min(window.devicePixelRatio, this.isMobile ? 1.25 : 2);
     this.renderer.setPixelRatio(this.pixelRatio);
     this.renderer.setSize(container.clientWidth, container.clientHeight);
     this.renderer.shadowMap.enabled = true;
@@ -230,12 +238,14 @@ export class GiftBoxScene {
     this.createBin();
     this.createTeddyCharacter();
     this.createDoor();
+    this.createBirthdayRoom();
 
     this.scene.add(this.mainBoxGroup);
     this.scene.add(this.giftsGroup);
     this.scene.add(this.binGroup);
     this.scene.add(this.teddyGroup);
     this.scene.add(this.doorGroup);
+    this.scene.add(this.birthdayRoomGroup);
 
     // Proposal room
     this.createProposalRoom();
@@ -262,7 +272,7 @@ export class GiftBoxScene {
     spot.angle = Math.PI / 3.8;
     spot.penumbra = 0.55;
     spot.castShadow = true;
-    const shadowSize = this.isMobile ? 768 : 1024;
+    const shadowSize = this.isMobile ? 512 : 1024;
     spot.shadow.mapSize.set(shadowSize, shadowSize);
     spot.shadow.camera.near = 1;
     spot.shadow.camera.far = 24;
@@ -329,7 +339,7 @@ export class GiftBoxScene {
     this.scene.add(innerRim);
 
     // Floating golden dust particles
-    const count = 220;
+    const count = this.isMobile ? 120 : 220;
     const geo = new THREE.BufferGeometry();
     this.particlePositions = new Float32Array(count * 3);
     for (let i = 0; i < count * 3; i += 3) {
@@ -563,6 +573,7 @@ export class GiftBoxScene {
         root.add(this.miniTeddyInBox);
         break;
       }
+      case 'letters':
       case 'letter': {
         // Wax sealed parchment envelope
         const envGeo = new THREE.BoxGeometry(0.62, 0.08, 0.46);
@@ -987,6 +998,124 @@ export class GiftBoxScene {
     this.doorHandle.userData = { isDoor: true };
   }
 
+  private createBirthdayRoom() {
+    const room = this.birthdayRoomGroup;
+    room.position.set(BIRTHDAY_ROOM_X, 0, 0);
+    room.visible = false;
+
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(28, 24),
+      new THREE.MeshStandardMaterial({ color: 0x351021, roughness: 0.54, metalness: 0.16 }),
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = FLOOR_Y;
+    floor.receiveShadow = true;
+    room.add(floor);
+
+    const backWall = new THREE.Mesh(
+      new THREE.PlaneGeometry(28, 12),
+      new THREE.MeshStandardMaterial({ color: 0x6f1c41, emissive: 0x260613, emissiveIntensity: 0.3, roughness: 0.88 }),
+    );
+    backWall.position.set(0, 4.8, -5.8);
+    room.add(backWall);
+
+    // A few bright birthday cards on the wall, each slightly turned like real paper cards.
+    const cardColors = [0xffe7a7, 0xffd5e1, 0xd5f2e6, 0xf9c5d6, 0xffefd0];
+    for (let i = 0; i < 9; i++) {
+      const card = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.9, 1.2),
+        new THREE.MeshBasicMaterial({ color: cardColors[i % cardColors.length] }),
+      );
+      card.position.set(-5.6 + (i % 5) * 2.8, 3.0 + Math.floor(i / 5) * 1.5, -5.66);
+      card.rotation.z = (i % 2 === 0 ? 1 : -1) * (0.05 + (i % 3) * 0.025);
+      room.add(card);
+
+      const ribbon = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.9, 0.07),
+        new THREE.MeshBasicMaterial({ color: 0xbc2853 }),
+      );
+      ribbon.position.copy(card.position);
+      ribbon.position.z += 0.01;
+      ribbon.rotation.z = card.rotation.z;
+      room.add(ribbon);
+    }
+
+    // Warm fairy lights strung across the birthday wall.
+    const wire = new THREE.Mesh(
+      new THREE.TorusGeometry(6.9, 0.012, 6, 56, Math.PI),
+      new THREE.MeshBasicMaterial({ color: 0xd6a949 }),
+    );
+    wire.position.set(0, 4.7, -5.63);
+    wire.rotation.z = Math.PI;
+    room.add(wire);
+    const bulbGeo = new THREE.SphereGeometry(0.065, 8, 8);
+    const bulbMat = new THREE.MeshBasicMaterial({ color: 0xffe29b });
+    for (let i = 0; i < 19; i++) {
+      const u = i / 18;
+      const bulb = new THREE.Mesh(bulbGeo, bulbMat);
+      bulb.position.set((u - 0.5) * 13.8, 4.7 - Math.sin(u * Math.PI) * 1.2, -5.58);
+      room.add(bulb);
+    }
+
+    // Balloons use low-poly, shared geometry/materials and are static: decoration without a frame cost.
+    const balloonGeo = new THREE.SphereGeometry(0.34, this.isMobile ? 10 : 14, this.isMobile ? 8 : 12);
+    const balloonColors = [0xe84b72, 0xf2c35b, 0xffaac0, 0xb78ce3];
+    for (let i = 0; i < 22; i++) {
+      const balloon = new THREE.Mesh(
+        balloonGeo,
+        new THREE.MeshStandardMaterial({ color: balloonColors[i % balloonColors.length], roughness: 0.32, metalness: 0.08 }),
+      );
+      const x = -6.2 + (i % 8) * 1.75;
+      const y = i % 3 === 0 ? 1.0 : 4.8 + (i % 4) * 0.18;
+      balloon.position.set(x, y, -4.7 + (i % 3) * 0.34);
+      balloon.scale.set(0.88, 1.15, 0.88);
+      room.add(balloon);
+    }
+
+    const warm = new THREE.PointLight(0xffcc86, 3.6, 18, 1.8);
+    warm.position.set(0, 3.5, 2.5);
+    room.add(warm);
+    const rose = new THREE.PointLight(0xd5356b, 1.8, 14, 2);
+    rose.position.set(-4.5, 1.8, 1);
+    room.add(rose);
+
+    // This door stays hidden until the cake has been cut, then becomes the way to the gift room.
+    this.birthdayExitDoor.position.set(0, 1.0, -5.52);
+    this.birthdayExitDoor.visible = false;
+    const exitFrame = new THREE.Mesh(
+      new THREE.BoxGeometry(2.15, 3.55, 0.12),
+      new THREE.MeshStandardMaterial({ color: 0xf0bd63, emissive: 0x3f1808, emissiveIntensity: 0.32, roughness: 0.36, metalness: 0.5 }),
+    );
+    const exitPanel = new THREE.Mesh(
+      new THREE.BoxGeometry(1.76, 3.2, 0.09),
+      new THREE.MeshStandardMaterial({ color: 0x761e45, emissive: 0x2a0617, emissiveIntensity: 0.26, roughness: 0.42, metalness: 0.18 }),
+    );
+    exitPanel.position.z = 0.08;
+    const exitKnob = new THREE.Mesh(
+      new THREE.SphereGeometry(0.08, 12, 12),
+      new THREE.MeshStandardMaterial({ color: 0xf6d47c, metalness: 0.9, roughness: 0.18 }),
+    );
+    exitKnob.position.set(0.56, -0.12, 0.16);
+    this.birthdayExitDoor.add(exitFrame, exitPanel, exitKnob);
+    room.add(this.birthdayExitDoor);
+  }
+
+  public enterBirthdayRoom() {
+    this.doorGroup.visible = false;
+    this.birthdayRoomGroup.visible = true;
+  }
+
+  public leaveBirthdayRoom() {
+    this.birthdayRoomGroup.visible = false;
+    this.birthdayExitDoor.visible = false;
+    this.doorGroup.visible = false;
+    this.isDoorOpening = false;
+    this.doorOpenProgress = 0;
+    this.doorHingedPanel.rotation.y = 0;
+    this.doorHandle.rotation.z = Math.PI / 2;
+    this.doorLight.intensity = 0;
+  }
+
   // Trigger the 3D ribbon untying and box explosion / walls falling down
  public startUnwrappingAnimation(onComplete?: () => void) {
   this.isUnwrapping = true;
@@ -1104,6 +1233,37 @@ export class GiftBoxScene {
       case 'BOOT':
       case 'LOCKED':
       case 'NAME_ENTRY':
+        this.cameraTargetPos.set(0, isMobile ? 2.6 : 2.2, isMobile ? 7.2 : 5.8);
+        this.cameraLookAt.set(0, 0, 0);
+        break;
+
+      case 'ENTRY_DOOR':
+      case 'ENTRY_DOOR_OPENING':
+        this.doorGroup.visible = true;
+        this.cameraTargetPos.set(0, isMobile ? 2.0 : 1.6, isMobile ? 3.6 : 2.4);
+        this.cameraLookAt.set(0, 1.1, -4.5);
+        if (newState === 'ENTRY_DOOR_OPENING') this.isDoorOpening = true;
+        break;
+
+      case 'BIRTHDAY_COUNTDOWN':
+      case 'BIRTHDAY_WISH':
+      case 'CAKE_CUTTING':
+      case 'GIFT_TRANSITION':
+        this.birthdayExitDoor.visible = false;
+        this.orbitLocked = true;
+        this.cameraTargetPos.set(BIRTHDAY_ROOM_X, isMobile ? 1.55 : 1.45, isMobile ? 6.9 : 6.1);
+        this.cameraLookAt.set(BIRTHDAY_ROOM_X, 1.0, -1.6);
+        break;
+
+      case 'GIFT_DOOR_READY':
+        this.birthdayExitDoor.visible = true;
+        this.orbitLocked = true;
+        this.cameraTargetPos.set(BIRTHDAY_ROOM_X, isMobile ? 1.55 : 1.45, isMobile ? 6.9 : 6.1);
+        this.cameraLookAt.set(BIRTHDAY_ROOM_X, 1.0, -1.6);
+        break;
+
+      case 'GIFT_READY':
+        this.doorGroup.visible = false;
         this.cameraTargetPos.set(0, isMobile ? 2.6 : 2.2, isMobile ? 7.2 : 5.8);
         this.cameraLookAt.set(0, 0, 0);
         break;
@@ -1409,6 +1569,18 @@ export class GiftBoxScene {
       this.doorLight.intensity = this.doorOpenProgress * 8.5;
     }
 
+    // A subtle, low-cost pulse makes the proposal room feel candlelit and alive.
+    if (this.roomGroup.visible) {
+      const pulse = 0.5 + Math.sin(elapsed * 1.7) * 0.5;
+      this.roomKeyLight.intensity = 3.35 + pulse * 0.8;
+      this.roomRimLight.intensity = 2.05 + (1 - pulse) * 0.55;
+      const heartScale = 3.2 + pulse * 0.075;
+      this.proposalHeart.scale.set(heartScale, heartScale, 1);
+      this.proposalHalo.rotation.z += delta * 0.12;
+      this.proposalHeart.material.emissiveIntensity = 0.75 + pulse * 0.35;
+      this.proposalHalo.material.opacity = 0.16 + pulse * 0.1;
+    }
+
     this.renderer.render(this.scene, this.camera);
     this.sampleFrame(delta);
   };
@@ -1463,13 +1635,21 @@ export class GiftBoxScene {
     room.add(wall);
 
     // Big glowing heart behind the couple (makes the silhouettes pop)
-    const heart = new THREE.Mesh(
+    this.proposalHeart = new THREE.Mesh(
       makeHeartGeometry(0.2),
       new THREE.MeshStandardMaterial({ color: 0xc2305c, emissive: 0xa01848, emissiveIntensity: 0.9, roughness: 0.5 }),
     );
-    heart.scale.set(3.2, 3.2, 1);
-    heart.position.set(0, 2.0, -6.8);
-    room.add(heart);
+    this.proposalHeart.scale.set(3.2, 3.2, 1);
+    this.proposalHeart.position.set(0, 2.0, -6.8);
+    room.add(this.proposalHeart);
+
+    // Gold halo behind the heart: one mesh, no per-frame allocations.
+    this.proposalHalo = new THREE.Mesh(
+      new THREE.TorusGeometry(2.75, 0.028, 8, 48),
+      new THREE.MeshBasicMaterial({ color: 0xffd77a, transparent: true, opacity: 0.22 }),
+    );
+    this.proposalHalo.position.set(0, 2.0, -6.9);
+    room.add(this.proposalHalo);
 
     // String lights
     const bulbGeo = new THREE.SphereGeometry(0.06, 8, 8);
@@ -1482,9 +1662,9 @@ export class GiftBoxScene {
     }
 
     // Red balloons lying on the floor (instanced = 2 draw calls)
-    const N = 46;
+    const N = this.isMobile ? 30 : 46;
     const bodies = new THREE.InstancedMesh(
-      new THREE.SphereGeometry(0.32, 20, 16),
+      new THREE.SphereGeometry(0.32, this.isMobile ? 14 : 20, this.isMobile ? 12 : 16),
       new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.22, metalness: 0.08 }),
       N,
     );
@@ -1533,7 +1713,7 @@ export class GiftBoxScene {
     this.resetPeople();
 
     // Sparkle burst
-    const SN = 320;
+    const SN = this.isMobile ? 180 : 320;
     const start = new Float32Array(SN * 3);
     const vel = new Float32Array(SN * 3);
     const delay = new Float32Array(SN);

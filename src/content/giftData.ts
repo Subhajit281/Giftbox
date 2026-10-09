@@ -1,6 +1,12 @@
+export interface LetterCard {
+  title: string;
+  body: string;
+  signOff?: string;
+}
+
 export interface GiftItem {
   id: string;
-  type: 'wrapped' | 'letter' | 'voice' | 'song' | 'photos' | 'interest' | 'secret';
+  type: 'wrapped' | 'letters' | 'letter' | 'voice' | 'song' | 'photos' | 'interest' | 'secret';
   title: string;
   subtitle: string;
   previewIcon: string;
@@ -12,6 +18,7 @@ export interface GiftItem {
     heading: string;
     subheading?: string;
     bodyText?: string;
+    letters?: LetterCard[];
     photos?: Array<{ url: string; caption: string; date?: string; backNote?: string }>;
     audioTitle?: string;
     audioDuration?: string;
@@ -32,7 +39,7 @@ export interface ExperienceConfig {
 
 export const DEFAULT_CONFIG: ExperienceConfig = {
   unlockName: 'Subhajit',
-  recipientName: 'My Favorite Person',
+  recipientName: 'Diya',
   creatorName: 'Subhajit',
   whatsappNumber: '916001155729',
   whatsappMessage: "Please write below if you liked it. Thats a small gift I thought of making for you while we are still away. Its just a beginning, I want to celebrate your birthday in much bigger ways in future🥺❤️.",
@@ -65,6 +72,45 @@ export const INITIAL_GIFTS: GiftItem[] = [
       subheading: 'Whenever you miss me or need a smile',
       bodyText: 'Inside this tiny box is a little companion that carries all my hugs. Whenever you have a long day, feel tired, or just need to know someone is cheering for you with all their heart, remember this little guy is holding that love for you.',
       specialActionLabel: 'Unwrap Mini Box',
+    },
+  },
+  {
+    id: 'gift-2',
+    type: 'letters',
+    title: 'Four Little Letters',
+    subtitle: 'Open Them One At A Time',
+    previewIcon: '💌',
+    boxColor: '#d4af37',
+    accentColor: '#8a2846',
+    isOpened: false,
+    isCollected: false,
+    content: {
+      heading: 'A Few Words, Kept Just For You',
+      subheading: 'There are four letters inside. Swipe through them slowly.',
+      specialActionLabel: 'Open the Letters',
+      // Personalize these four notes whenever you are ready.
+      letters: [
+        {
+          title: 'Letter One · The Beginning',
+          body: 'Somewhere along the way, knowing you became one of the softest and happiest parts of my days. I hope you always know how special that is to me.',
+          signOff: 'With a full heart,',
+        },
+        {
+          title: 'Letter Two · The Little Things',
+          body: 'It is the little things I keep close: your laugh, your kindness, the way you make ordinary moments feel warm. You make life feel more beautiful simply by being in it.',
+          signOff: 'Always noticing you,',
+        },
+        {
+          title: 'Letter Three · My Promise',
+          body: 'On the easy days and the difficult ones too, I want to be someone who reminds you how capable, loved, and wonderful you are. I will keep choosing you with care.',
+          signOff: 'Here for you,',
+        },
+        {
+          title: 'Letter Four · Just Us',
+          body: 'This is only a small gift, but every part of it carries the same truth: you mean so much to me. Thank you for being exactly who you are.',
+          signOff: 'Forever yours,\nSubhajit ❤️',
+        },
+      ],
     },
   },
   // {

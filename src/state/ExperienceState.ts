@@ -3,6 +3,14 @@ import type { GiftItem, ExperienceConfig } from '../content/giftData';
 
 export type ExperienceState =
   | 'BOOT'
+  | 'ENTRY_DOOR'
+  | 'ENTRY_DOOR_OPENING'
+  | 'BIRTHDAY_COUNTDOWN'
+  | 'BIRTHDAY_WISH'
+  | 'CAKE_CUTTING'
+  | 'GIFT_DOOR_READY'
+  | 'GIFT_TRANSITION'
+  | 'GIFT_READY'
   | 'LOCKED'
   | 'NAME_ENTRY'
   | 'VALIDATING'

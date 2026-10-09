@@ -1,3 +1,6 @@
+import { AUDIO_PLAYLIST } from '../content/playlist';
+import type { PlaylistSlot } from '../content/playlist';
+
 // Web Audio API procedural sound engine: zero dependencies, zero broken links, 100% reliable across browsers.
 
 class ProceduralSoundEngine {
@@ -6,6 +9,8 @@ class ProceduralSoundEngine {
   private bgmPlaying: boolean = false;
   private bgmInterval: number | null = null;
   private masterGain: GainNode | null = null;
+  private playlistAudio = new Map<PlaylistSlot, HTMLAudioElement>();
+  private activePlaylist: PlaylistSlot | null = null;
 
   constructor() {
     // AudioContext will be initialized on first user interaction
@@ -29,6 +34,9 @@ class ProceduralSoundEngine {
     if (this.masterGain && this.ctx) {
       this.masterGain.gain.setTargetAtTime(muted ? 0 : 0.7, this.ctx.currentTime, 0.05);
     }
+    this.playlistAudio.forEach((audio) => {
+      audio.volume = muted ? 0 : 0.68;
+    });
   }
 
   public getMuted(): boolean {
@@ -500,6 +508,81 @@ class ProceduralSoundEngine {
 
   public isMusicPlaying(): boolean {
     return this.bgmPlaying;
+  }
+
+  // --- Personal music playlists ---
+
+  private getPlaylistAudio(slot: PlaylistSlot) {
+    let audio = this.playlistAudio.get(slot);
+    if (!audio) {
+      audio = new Audio();
+      audio.preload = 'auto';
+      audio.volume = this.isMuted ? 0 : 0.68;
+      this.playlistAudio.set(slot, audio);
+    }
+    return audio;
+  }
+
+  private playPlaylistTrack(slot: PlaylistSlot, index: number) {
+    const tracks = AUDIO_PLAYLIST[slot];
+    const audio = this.getPlaylistAudio(slot);
+
+    if (index >= tracks.length) {
+      this.activePlaylist = null;
+      return;
+    }
+
+    audio.onended = () => this.playPlaylistTrack(slot, index + 1);
+    audio.onerror = () => this.playPlaylistTrack(slot, index + 1);
+    audio.src = tracks[index];
+    audio.currentTime = 0;
+    audio.muted = false;
+    audio.volume = this.isMuted ? 0 : 0.68;
+    void audio.play().catch(() => {
+      // A missing file or a browser autoplay restriction should leave the experience usable.
+    });
+  }
+
+  /** Starts every valid file in the configured slot, one after another. */
+  public playPlaylist(slot: PlaylistSlot) {
+    this.playlistAudio.forEach((audio, key) => {
+      if (key !== slot) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+    });
+    this.activePlaylist = slot;
+    this.playPlaylistTrack(slot, 0);
+  }
+
+  /** Primes a track from a direct tap so delayed scene transitions remain playable on mobile Safari. */
+  public primePlaylist(slot: PlaylistSlot) {
+    const tracks = AUDIO_PLAYLIST[slot];
+    if (!tracks.length) return;
+    const audio = this.getPlaylistAudio(slot);
+    audio.src = tracks[0];
+    audio.muted = true;
+    void audio.play().then(() => {
+      audio.muted = false;
+      audio.volume = this.isMuted ? 0 : 0.68;
+      // If the room has already started its playlist, do not interrupt it.
+      if (this.activePlaylist !== slot) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+    }).catch(() => {
+      audio.muted = false;
+    });
+  }
+
+  public stopPlaylist(slot?: PlaylistSlot) {
+    this.playlistAudio.forEach((audio, key) => {
+      if (!slot || key === slot) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+    });
+    if (!slot || this.activePlaylist === slot) this.activePlaylist = null;
   }
 }
 

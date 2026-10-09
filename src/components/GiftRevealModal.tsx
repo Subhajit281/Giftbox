@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { GiftItem, ExperienceConfig } from '../content/giftData';
+import type { GiftItem, ExperienceConfig, LetterCard } from '../content/giftData';
 import { soundManager } from '../audio/SoundManager';
 import confetti from 'canvas-confetti';
 import {
@@ -33,6 +33,19 @@ export const GiftRevealModal: React.FC<GiftRevealModalProps> = ({
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [isPhotoFlipped, setIsPhotoFlipped] = useState(false);
   const [musicNoteIndex, setMusicNoteIndex] = useState(0);
+  const [letterIndex, setLetterIndex] = useState(0);
+  const [letterDirection, setLetterDirection] = useState<'next' | 'previous'>('next');
+  const touchStartX = React.useRef<number | null>(null);
+
+  const letters: LetterCard[] = gift.content.letters || [];
+  const activeLetter = letters[letterIndex];
+
+  const showLetter = (nextIndex: number) => {
+    if (!letters.length || nextIndex < 0 || nextIndex >= letters.length) return;
+    setLetterDirection(nextIndex > letterIndex ? 'next' : 'previous');
+    setLetterIndex(nextIndex);
+    soundManager.playPaperRustle();
+  };
 
   // Trigger reveal action
   const handleReveal = () => {
@@ -43,6 +56,10 @@ export const GiftRevealModal: React.FC<GiftRevealModalProps> = ({
         break;
       case 'letter':
         soundManager.playSealBreak();
+        break;
+      case 'letters':
+        soundManager.playSealBreak();
+        soundManager.playPlaylist('giftOpen');
         break;
       case 'voice':
         soundManager.playPhotoSlide();
@@ -159,7 +176,7 @@ export const GiftRevealModal: React.FC<GiftRevealModalProps> = ({
 
               <button
                 onClick={handleReveal}
-                className="py-3.5 px-8 rounded-full font-bold text-[#2e0b19] bg-gradient-to-r from-[#d4af37] via-[#f5e29f] to-[#d4af37] hover:brightness-105 active:scale-95 transition shadow-lg shadow-[#d4af37]/25 flex items-center gap-2 mx-auto cursor-pointer"
+                className="premium-gold-cta py-3.5 px-8 rounded-full font-bold text-[#2e0b19] bg-gradient-to-r from-[#d4af37] via-[#f5e29f] to-[#d4af37] hover:brightness-105 active:scale-95 transition shadow-lg shadow-[#d4af37]/25 flex items-center gap-2 mx-auto cursor-pointer"
               >
                 <Sparkles className="w-4 h-4 text-[#8a1c35]" />
                 <span>{gift.content.specialActionLabel || 'Open This Gift'}</span>
@@ -183,6 +200,69 @@ export const GiftRevealModal: React.FC<GiftRevealModalProps> = ({
                   <div className="p-4 rounded-2xl bg-[#fff6f8] border border-[#d4af37]/30 text-xs text-[#8a1c35] font-semibold">
                     ❤️ Handcrafted keepsake to remind you that you are always cherished.
                   </div>
+                </div>
+              )}
+
+              {/* A four-card letter gift, revealed one note at a time. */}
+              {gift.type === 'letters' && activeLetter && (
+                <div className="space-y-4 py-1 text-center">
+                  <div className="flex items-center justify-center gap-2 text-[11px] uppercase tracking-[0.18em] text-[#8a1c35] font-bold">
+                    <Heart className="w-3.5 h-3.5 fill-current" />
+                    <span>Letter {letterIndex + 1} of {letters.length}</span>
+                    <Heart className="w-3.5 h-3.5 fill-current" />
+                  </div>
+
+                  <div
+                    key={letterIndex}
+                    className={`parchment-paper relative min-h-72 sm:min-h-80 p-6 sm:p-9 rounded-2xl shadow-xl border border-[#c5a059]/50 flex flex-col text-left transition-all duration-300 ${letterDirection === 'next' ? 'animate-letter-in-right' : 'animate-letter-in-left'}`}
+                    onTouchStart={(event) => {
+                      touchStartX.current = event.changedTouches[0]?.clientX ?? null;
+                    }}
+                    onTouchEnd={(event) => {
+                      const start = touchStartX.current;
+                      const end = event.changedTouches[0]?.clientX;
+                      touchStartX.current = null;
+                      if (start === null || end === undefined || Math.abs(start - end) < 45) return;
+                      showLetter(start > end ? letterIndex + 1 : letterIndex - 1);
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-4 border-b border-[#a87f54]/30 pb-3">
+                      <div>
+                        <p className="font-serif-luxury text-xs italic text-[#704830] font-semibold">For {config.recipientName}</p>
+                        <h3 className="font-serif-luxury text-2xl sm:text-3xl font-bold text-[#2e0b19] mt-1">{activeLetter.title}</h3>
+                      </div>
+                      <Heart className="w-5 h-5 shrink-0 text-[#8a1c35] fill-current" />
+                    </div>
+                    <p className="font-serif-luxury text-lg sm:text-xl leading-relaxed tracking-wide font-medium text-[#261017] whitespace-pre-line my-auto py-6">
+                      {activeLetter.body}
+                    </p>
+                    <p className="font-serif-luxury text-base sm:text-lg italic text-[#704830] whitespace-pre-line">{activeLetter.signOff}</p>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <button
+                      type="button"
+                      onClick={() => showLetter(letterIndex - 1)}
+                      disabled={letterIndex === 0}
+                      className="py-2.5 px-4 rounded-xl border border-[#d4af37]/50 text-sm font-bold text-[#6d253b] disabled:opacity-35 disabled:cursor-not-allowed hover:bg-[#fff8ea] transition cursor-pointer"
+                    >
+                      Previous
+                    </button>
+                    <div className="flex gap-1.5" aria-label={`Viewing letter ${letterIndex + 1} of ${letters.length}`}>
+                      {letters.map((_, index) => (
+                        <span key={index} className={`h-1.5 rounded-full transition-all ${index === letterIndex ? 'w-6 bg-[#8a1c35]' : 'w-1.5 bg-[#d4af37]/45'}`} />
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => showLetter(letterIndex + 1)}
+                      disabled={letterIndex === letters.length - 1}
+                      className="py-2.5 px-4 rounded-xl bg-[#8a1c35] text-white text-sm font-bold disabled:opacity-35 disabled:cursor-not-allowed hover:bg-[#68142f] transition cursor-pointer"
+                    >
+                      Next
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-stone-500 font-medium">Swipe a letter left or right to move between them.</p>
                 </div>
               )}
 
