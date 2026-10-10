@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import type { GiftItem } from '../content/giftData';
 import type { ExperienceState } from '../state/ExperienceState';
 import { BirthdayStage } from './birthday/BirthdayStage';
+import { GiftRoomFX } from './giftroom/GiftRoomFX';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
 const ROOM_X = 80; // the proposal room lives far from the gift world, so no hiding/unhiding is needed
 const BIRTHDAY_ROOM_X = 40;
@@ -124,6 +126,8 @@ export class GiftBoxScene {
 
   // Everything belonging to the gift room lives under one group, so each story stage shows only its own world.
   private giftWorld = new THREE.Group();
+  private giftFx!: GiftRoomFX;
+  private giftEnv: THREE.Texture | null = null;
   private ambLight!: THREE.AmbientLight;
   private snapCameraNext = false;
 
@@ -245,6 +249,9 @@ export class GiftBoxScene {
     this.createTeddyCharacter();
     this.createDoor();
     this.createBirthdayRoom();
+    this.giftFx = new GiftRoomFX(this.isMobile);
+    this.giftWorld.add(this.giftFx.group);
+    this.applyGiftRoomReflections(this.mainBoxGroup);
 
     this.giftWorld.add(this.mainBoxGroup, this.giftsGroup, this.binGroup, this.teddyGroup);
     this.giftWorld.visible = false; // nothing but the dark until the story starts
@@ -366,6 +373,28 @@ export class GiftBoxScene {
   }
 
   // Build the grand gift box with 4 unfolding explosion-box walls and removable lid
+  /** Real reflections on velvet, gold and ribbon: the difference between plastic and luxury. */
+  private applyGiftRoomReflections(root: THREE.Object3D) {
+    if (!this.giftEnv) {
+      const pmrem = new THREE.PMREMGenerator(this.renderer);
+      this.giftEnv = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+      pmrem.dispose();
+    }
+    const seen = new Set<THREE.Material>();
+    root.traverse((o) => {
+      const m = (o as THREE.Mesh).material as THREE.Material | undefined;
+      if (m && (m as THREE.MeshStandardMaterial).isMeshStandardMaterial && !seen.has(m)) {
+        seen.add(m);
+        const sm = m as THREE.MeshStandardMaterial;
+        if (!sm.envMap) {
+          sm.envMap = this.giftEnv;
+          sm.envMapIntensity = sm.metalness > 0.6 ? 1.25 : 0.55;
+          sm.needsUpdate = true;
+        }
+      }
+    });
+  }
+
   private createGrandGiftBox() {
     const size = 2.8;
     const height = 1.9;
@@ -730,6 +759,8 @@ export class GiftBoxScene {
     group.add(heart);
 
     return group;
+    this.applyGiftRoomReflections(this.giftsGroup);
+    this.giftFx.attachHalos(this.giftMeshes.values());
   }
 
   // 3D Collection Bin / Basket situated at the side
@@ -1111,8 +1142,20 @@ export class GiftBoxScene {
   this.isUnwrapping = true;
   void this.isUnwrapping; // read to avoid unused warning
 
-  const duration = 1800; // ms
+  const duration = 2600; // ms
   let startTime = -1;
+
+  const bounce = (x: number) => {
+    const n1 = 7.5625;
+    const d1 = 2.75;
+    if (x < 1 / d1) return n1 * x * x;
+    if (x < 2 / d1) return n1 * (x -= 1.5 / d1) * x + 0.75;
+    if (x < 2.5 / d1) return n1 * (x -= 2.25 / d1) * x + 0.9375;
+    return n1 * (x -= 2.625 / d1) * x + 0.984375;
+  };
+  const back = (x: number) => 1 + 2.70158 * Math.pow(x - 1, 3) + 1.70158 * Math.pow(x - 1, 2);
+  let burst = false;
+  this.giftFx.reset();
 
   const step = (now: number) => {
     if (startTime < 0) startTime = now;
@@ -1120,47 +1163,53 @@ export class GiftBoxScene {
     const progress = Math.min(1, (now - startTime) / duration);
     this.unwrapProgress = progress;
 
-    // Phase 1: Ribbon bow unties & scales away (0 to 0.4)
-    const bowScale = Math.max(0.001, 1 - Math.min(1, progress * 2.5));
+    // Phase 1: the bow swells, spins and unties away (0 to 0.4)
+    const bp = Math.min(1, progress * 2.5);
+    const bowScale = Math.max(0.001, bp < 0.25 ? 1 + bp * 0.9 : (1 + 0.225) * (1 - (bp - 0.25) / 0.75));
     this.ribbonBowGroup.scale.set(bowScale, bowScale, bowScale);
+    this.ribbonBowGroup.rotation.y = bp * Math.PI * 3;
     this.ribbonBandsGroup.scale.set(bowScale, bowScale, bowScale);
 
-    // Phase 2: Lid lifts up and rotates off (0.2 to 0.8)
+    // Phase 2: lid lifts, twirls and drifts away (0.2 to 0.8)
     if (progress > 0.2) {
       const lidProg = (progress - 0.2) / 0.6;
       this.boxLidGroup.position.y = 1.1 + lidProg * 2.6;
       this.boxLidGroup.position.z = -lidProg * 1.8;
       this.boxLidGroup.rotation.x = -lidProg * 0.8;
-      this.boxLidGroup.scale.setScalar(
-        Math.max(0.001, 1 - lidProg * 0.7)
-      );
+      this.boxLidGroup.rotation.y = lidProg * 2.4;
+      this.boxLidGroup.scale.setScalar(Math.max(0.001, 1 - lidProg * 0.7));
     }
 
-    // Phase 3: Walls fall down flat like explosion box (0.4 to 1.0)
+    // Phase 3: walls drop and bounce flat like an explosion box (0.4 to 1.0)
     if (progress > 0.4) {
       const wallProg = (progress - 0.4) / 0.6;
+      if (!burst) {
+        burst = true;
+        this.giftFx.burst();
+      }
 
-      // Spring easing for physical flop onto floor
-      const angle = Math.min(
-        Math.PI / 2,
-        wallProg * (Math.PI / 2) * 1.08
-      );
-
+      const angle = (Math.PI / 2) * Math.min(1, bounce(Math.min(1, wallProg * 1.15)));
       this.wallFront.rotation.x = angle;
       this.wallBack.rotation.x = -angle;
       this.wallLeft.rotation.z = angle;
       this.wallRight.rotation.z = -angle;
 
-      // Flare interior golden light
-      this.interiorWarmLight.intensity = wallProg * 4.2;
+      // the inside blooms with golden light
+      this.interiorWarmLight.intensity = wallProg * 7;
 
-      // Show gifts emerging
+      // gifts pop up one after another
+      let order = 0;
       this.giftMeshes.forEach((mesh, id) => {
         const gift = this.giftsData.find((g) => g.id === id);
-
         if (gift && !gift.isCollected) {
-          mesh.visible = true;
-          mesh.scale.setScalar(Math.min(1, wallProg * 1.1));
+          const local = Math.min(1, Math.max(0, (wallProg - order * 0.07) / 0.55));
+          order++;
+          if (local > 0) {
+            mesh.visible = true;
+            mesh.scale.setScalar(Math.max(0.001, back(local)));
+            const base = mesh.userData.basePos as THREE.Vector3 | undefined;
+            if (base) mesh.position.y = base.y - (1 - local) * 0.5;
+          }
         }
       });
     }
@@ -1170,6 +1219,7 @@ export class GiftBoxScene {
     } else {
       this.boxLidGroup.visible = false;
       this.ribbonBandsGroup.visible = false;
+      this.interiorWarmLight.intensity = 4.2;
 
       // Final rest: walls flat on floor
       this.wallFront.rotation.x = Math.PI / 2;
@@ -1518,6 +1568,8 @@ export class GiftBoxScene {
       }
       this.camera.lookAt(this.currentLookAt);
     }
+
+    if (this.giftWorld.visible) this.giftFx.update(delta, elapsed);
 
     // 2. Dust particles
     if (this.particlePositions) {
