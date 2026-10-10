@@ -27,16 +27,7 @@ export const ExperienceHUD: React.FC<ExperienceHUDProps> = ({
       <div className="flex flex-col items-center w-full gap-1.5 sm:gap-2">
         {/* Top Control Bar */}
         <div className="flex items-center justify-between w-full">
-          {/* Audio Controls */}
           <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto">
-            <button
-              onClick={onOpenSettings}
-              aria-label="Personalize your messages"
-              title="Personalize your messages"
-              className="p-2 sm:p-2.5 rounded-full glass-pill hover:bg-rose-50 text-[#3b0a1a] transition cursor-pointer shadow-md active:scale-95 border border-[#d4af37]/40"
-            >
-              <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#c59b27]" />
-            </button>
             <button
               onClick={onToggleMute}
               aria-label="Toggle SFX Mute"
@@ -47,7 +38,14 @@ export const ExperienceHUD: React.FC<ExperienceHUDProps> = ({
             </button>
           </div>
 
-          <div className="w-8 sm:w-9" aria-hidden="true" />
+          <button
+            onClick={onOpenSettings}
+            aria-label="Personalize your messages"
+            title="Personalize your messages"
+            className="pointer-events-auto p-2 sm:p-2.5 rounded-full glass-pill hover:bg-rose-50 text-[#3b0a1a] transition cursor-pointer shadow-md active:scale-95 border border-[#d4af37]/40"
+          >
+            <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#c59b27]" />
+          </button>
         </div>
 
         {/* Narrative Instruction Banner: Positioned prominently at TOP of page */}
