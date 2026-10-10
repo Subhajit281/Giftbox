@@ -29,8 +29,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-stone-900/35 backdrop-blur-md pointer-events-auto safe-top safe-bottom">
-      <div className="glass-panel max-w-lg w-full max-h-[calc(100dvh-1rem)] sm:max-h-[90vh] rounded-2xl sm:rounded-3xl p-5 sm:p-8 flex flex-col border-2 border-[#d4af37]/50 shadow-2xl relative bg-white/95 text-[#2e0b19]">
+    <div className="mobile-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 pointer-events-auto">
+      <div className="mobile-modal-content glass-panel max-w-lg w-full max-h-[calc(100dvh-1rem)] sm:max-h-[90vh] rounded-2xl sm:rounded-3xl p-5 sm:p-8 flex flex-col border-2 border-[#d4af37]/50 shadow-2xl relative bg-white/95 text-[#2e0b19]">
 
         {/* Close */}
         <button

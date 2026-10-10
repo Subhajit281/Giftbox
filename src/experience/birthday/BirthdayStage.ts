@@ -908,7 +908,13 @@ export class BirthdayStage {
   enter() {
     this.reset();
     this.cameraActive = true;
-    this.snapCamera(this.frame(V(0, 0.55, 0), 5.2, 3.7, 0, 0.16));
+    if (this.isMobile) {
+      // Keep the cake close and still for the countdown and candle blow.
+      this.drift = 0;
+      this.snapCamera(this.frame(V(0, 1.05, 0), 1.9, 2.8, 0, 0.1));
+    } else {
+      this.snapCamera(this.frame(V(0, 0.55, 0), 5.2, 3.7, 0, 0.16));
+    }
   }
 
   leave() {
@@ -924,12 +930,16 @@ export class BirthdayStage {
       this.ambient = lerp(0.42, 0.5, p);
       this.keyLight.intensity = this.keyBase * lerp(0.32, 0.55, p);
     });
-    this.moveCamera(this.frame(V(0, 0.95, 0), 2.7, 3.0, 0.06, 0.13), seconds);
+    if (!this.isMobile) {
+      this.moveCamera(this.frame(V(0, 0.95, 0), 2.7, 3.0, 0.06, 0.13), seconds);
+    }
   }
 
   /** Breath, bending flame, a last gasp, smoke. */
   async blowOut() {
-    this.moveCamera(this.frame(V(0, 1.38, 0), 1.9, 2.0, 0.1, 0.08), 1.0);
+    if (!this.isMobile) {
+      this.moveCamera(this.frame(V(0, 1.38, 0), 1.9, 2.0, 0.1, 0.08), 1.0);
+    }
     soundManager.playBlow();
 
     // the breath: a rush of soft puffs from the viewer's side to the flame
