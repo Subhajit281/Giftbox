@@ -37,20 +37,20 @@ export const FinalDoorModal: React.FC<FinalDoorModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center p-3 sm:p-4 pointer-events-none safe-top safe-bottom">
+    <div className="door-invitation-anchor fixed inset-x-0 z-40 flex justify-center px-3 pointer-events-none">
       <div className="pointer-events-auto text-center animate-fade-in">
         <button
           onClick={handleDoorClick}
-          className="door-invitation premium-door-cta group py-2.5 sm:py-3 px-4 sm:px-5 rounded-2xl glass-panel shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 cursor-pointer flex items-center gap-2.5 sm:gap-3 text-[#2e0b19]"
+          className="door-invitation premium-door-cta group py-1.5 px-3 rounded-xl glass-panel shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 cursor-pointer flex items-center gap-2 text-[#2e0b19]"
         >
-          <DoorOpen className="w-6 h-6 shrink-0 text-[#b28b52] group-hover:translate-x-0.5 transition-transform" />
+          <DoorOpen className="w-5 h-5 shrink-0 text-[#b28b52] group-hover:translate-x-0.5 transition-transform" />
           <div className="text-left">
-            <span className="block text-[10px] uppercase tracking-[0.16em] text-[#8a1c35] font-bold">
+            <span className="block text-[9px] uppercase tracking-[0.14em] text-[#8a1c35] font-bold">
               {eyebrow}
             </span>
-            <span className="font-serif-luxury text-base sm:text-lg font-semibold text-[#2e0b19]">{title}</span>
+            <span className="font-serif-luxury text-sm sm:text-base font-semibold text-[#2e0b19]">{title}</span>
           </div>
-          <Sparkles className="w-4 h-4 shrink-0 text-[#b28b52]" />
+          <Sparkles className="w-3.5 h-3.5 shrink-0 text-[#b28b52]" />
         </button>
       </div>
     </div>

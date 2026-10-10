@@ -655,6 +655,14 @@
   font-size: 1.65rem;
   font-weight: 700;
 }
+@media (max-width: 640px) {
+  .countdown-ring {
+    width: 3.1rem;
+    height: 3.1rem;
+    margin-top: 0.35rem;
+  }
+  .countdown-ring span { font-size: 1.4rem; }
+}
 
 /* The greeting rises over the 3D celebration and fades before the second door. */
 .birthday-wish { transition: opacity .7s ease; }
@@ -665,10 +673,13 @@
 .birthday-wish-message h2 { margin-top: .5rem; font-size: clamp(1.8rem, 8vw, 3.2rem); font-style: italic; line-height: 1.08; }
 .birthday-wish-message strong { margin-top: .25rem; padding: 0 0 .12em; font-size: clamp(3.3rem, 17vw, 6.3rem); line-height: 1.08; }
 .door-invitation {
-  max-width: min(22rem, calc(100vw - 1.5rem));
+  max-width: min(19rem, calc(100vw - 1.5rem));
   border: 1px solid rgba(187, 151, 91, 0.38);
   background: linear-gradient(145deg, rgba(255, 253, 249, 0.94), rgba(250, 242, 231, 0.88));
   box-shadow: 0 14px 34px rgba(22, 4, 13, 0.2), inset 0 1px rgba(255, 255, 255, 0.9);
+}
+.door-invitation-anchor {
+  top: max(3.5rem, calc(env(safe-area-inset-top) + 0.75rem));
 }
 @keyframes wishMessage { 0% { opacity: 0; transform: translate(-50%, 18px) scale(.94); } 100% { opacity: 1; transform: translate(-50%, 0) scale(1); } }
 

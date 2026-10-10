@@ -985,16 +985,20 @@ export class GiftBoxScene {
     this.doorGroup.position.set(0, 0, -4.5);
     this.doorGroup.visible = false;
 
-    // Deep-wine finish, champagne-metal reveals, and one restrained birthday plaque.
-    const frameGeo = new THREE.BoxGeometry(2.6, 4.4, 0.25);
-    const frameMat = new THREE.MeshStandardMaterial({ color: 0x6a3447, emissive: 0x190812, emissiveIntensity: 0.12, roughness: 0.34, metalness: 0.42 });
-    const frame = new THREE.Mesh(frameGeo, frameMat);
-    frame.position.y = 1.1;
-    this.doorGroup.add(frame);
+    // Use an open architectural frame so its trim never hides the carved door face.
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0xc9a96a, metalness: 0.82, roughness: 0.24 });
+    for (const x of [-1.15, 1.15]) {
+      const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3.75, 0.16), frameMat);
+      jamb.position.set(x, 0.72, 0);
+      this.doorGroup.add(jamb);
+    }
+    const head = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.2, 0.16), frameMat);
+    head.position.set(0, 2.685, 0);
+    this.doorGroup.add(head);
 
-    // Hinged door panel (Pivot at x = -0.95)
-    this.doorHingedPanel.position.set(-0.95, 1.1, 0);
-    const panelGeo = new THREE.BoxGeometry(1.9, 4.1, 0.12);
+    // Hinged mahogany panel with raised champagne moulding and inset panels.
+    this.doorHingedPanel.position.set(-0.95, 0.71, 0);
+    const panelGeo = new THREE.BoxGeometry(1.9, 3.72, 0.12);
     const woodMat = new THREE.MeshStandardMaterial({ color: 0x351522, emissive: 0x160711, emissiveIntensity: 0.12, roughness: 0.32, metalness: 0.24 });
     const panel = new THREE.Mesh(panelGeo, woodMat);
     panel.position.set(0.95, 0, 0);
@@ -1002,12 +1006,32 @@ export class GiftBoxScene {
     panel.receiveShadow = true;
     this.doorHingedPanel.add(panel);
 
-    // Brass handle
-    const handleGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.26, 12);
+    const trimMat = frameMat;
+    const insetMat = new THREE.MeshStandardMaterial({ color: 0x492031, roughness: 0.3, metalness: 0.18 });
+    for (const [y, width, height] of [[0.82, 1.18, 1.08], [-0.83, 1.18, 1.28]]) {
+      const border = new THREE.Mesh(new THREE.BoxGeometry(width + 0.07, height + 0.07, 0.025), trimMat);
+      border.position.set(0.95, y, 0.073);
+      const inset = new THREE.Mesh(new THREE.BoxGeometry(width, height, 0.025), insetMat);
+      inset.position.set(0.95, y, 0.091);
+      border.userData = { isDoor: true };
+      inset.userData = { isDoor: true };
+      this.doorHingedPanel.add(border, inset);
+    }
+
+    // Three visible brass hinges and a proper rosette-mounted round knob.
+    for (const y of [-1.25, 0, 1.25]) {
+      const hinge = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.28, 0.035), trimMat);
+      hinge.position.set(0.08, y, 0.095);
+      this.doorHingedPanel.add(hinge);
+    }
+    const knobX = 1.58;
+    const rosette = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.045, 24), trimMat);
+    rosette.rotation.x = Math.PI / 2;
+    rosette.position.set(knobX, -0.05, 0.12);
+    this.doorHingedPanel.add(rosette);
     const brassMat = new THREE.MeshStandardMaterial({ color: 0xc9a96a, metalness: 0.82, roughness: 0.24 });
-    this.doorHandle = new THREE.Mesh(handleGeo, brassMat);
-    this.doorHandle.rotation.z = Math.PI / 2;
-    this.doorHandle.position.set(1.65, 0, 0.12);
+    this.doorHandle = new THREE.Mesh(new THREE.SphereGeometry(0.095, 24, 18), brassMat);
+    this.doorHandle.position.set(knobX, -0.05, 0.21);
     this.doorHingedPanel.add(this.doorHandle);
 
     this.doorGroup.add(this.doorHingedPanel);
@@ -1028,18 +1052,18 @@ export class GiftBoxScene {
     this.doorGroup.add(doorFloor);
 
     // Door backdrop
-    const bgGeo = new THREE.PlaneGeometry(1.9, 4.1);
+    const bgGeo = new THREE.PlaneGeometry(1.9, 3.72);
     const bgMat = new THREE.MeshBasicMaterial({ color: 0xffd8a0 });
     const bg = new THREE.Mesh(bgGeo, bgMat);
-    bg.position.set(0, 1.1, -0.15);
+    bg.position.set(0, 0.71, -0.15);
     this.doorGroup.add(bg);
 
     panel.userData = { isDoor: true };
     this.doorHandle.userData = { isDoor: true };
 
     // A small, clean 20th-birthday plaque replaces the oversized floral dressing.
-    this.doorBadge = new DoorBadge(0.74);
-    this.doorBadge.badge.position.set(0.95, 1.18, 0.075);
+    this.doorBadge = new DoorBadge(0.64);
+    this.doorBadge.badge.position.set(0.95, 0.82, 0.13);
     this.doorHingedPanel.add(this.doorBadge.badge);
   }
 
@@ -1124,7 +1148,7 @@ export class GiftBoxScene {
     this.isDoorOpening = false;
     this.doorOpenProgress = 0;
     this.doorHingedPanel.rotation.y = 0;
-    this.doorHandle.rotation.z = Math.PI / 2;
+    this.doorHandle.rotation.y = 0;
     this.doorLight.intensity = 0;
     this.snapCameraNext = true;
   }
@@ -1290,8 +1314,8 @@ export class GiftBoxScene {
       case 'ENTRY_DOOR_OPENING':
         this.doorGroup.visible = true;
         this.orbitLocked = true; // a still, straight-on view of the door: no camera rotation at all
-        this.cameraTargetPos.set(0, 1.62, isMobile ? 3.6 : 2.4);
-        this.cameraLookAt.set(0, 1.62, -4.5);
+        this.cameraTargetPos.set(0, 0.82, isMobile ? -0.5 : 2.4);
+        this.cameraLookAt.set(0, 0.82, -4.5);
         if (prev === 'BOOT') this.snapCameraNext = true;
         if (newState === 'ENTRY_DOOR_OPENING') this.isDoorOpening = true;
         break;
@@ -1358,8 +1382,8 @@ export class GiftBoxScene {
       case 'FINAL_HANDOFF':
         this.orbitLocked = true; // straight-on view only, so the other side of the door can never be seen
         this.doorGroup.visible = true;
-        this.cameraTargetPos.set(0, 1.62, isMobile ? 3.6 : 2.4);
-        this.cameraLookAt.set(0, 1.62, -4.5);
+        this.cameraTargetPos.set(0, 0.82, isMobile ? -0.5 : 2.4);
+        this.cameraLookAt.set(0, 0.82, -4.5);
         if (newState === 'DOOR_OPENING' || newState === 'FINAL_HANDOFF') {
           this.isDoorOpening = true;
         }
@@ -1651,7 +1675,7 @@ export class GiftBoxScene {
     if (this.doorGroup.visible && this.isDoorOpening) {
       this.doorOpenProgress = THREE.MathUtils.lerp(this.doorOpenProgress, 1, this.damp(1.9, delta));
       this.doorHingedPanel.rotation.y = this.doorOpenProgress * (Math.PI / 2) * 0.95;
-      this.doorHandle.rotation.z = Math.PI / 2 - this.doorOpenProgress * 0.5;
+      this.doorHandle.rotation.y = this.doorOpenProgress * 0.6;
       this.doorLight.intensity = this.doorOpenProgress * 8.5;
     }
 

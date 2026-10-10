@@ -36,12 +36,12 @@ export const BirthdayCeremony: React.FC<BirthdayCeremonyProps> = ({ phase, onCou
 
   return (
     <div className="birthday-ceremony fixed inset-0 z-40 pointer-events-none flex flex-col items-center justify-start safe-top" aria-live="polite">
-      <div className="birthday-countdown-card text-center mt-2 sm:mt-10 px-4 py-4 sm:py-5">
+      <div className="birthday-countdown-card text-center mt-2 sm:mt-10 px-3 py-2.5 sm:px-4 sm:py-5">
         {phase === 'countdown' ? (
           <>
-            <p className="text-[11px] sm:text-xs uppercase tracking-[0.24em] text-[#ffe2a2] font-bold">A moment just for you</p>
-            <p className="font-serif-luxury text-lg sm:text-2xl font-semibold text-white drop-shadow-lg">Make a wish, my love</p>
-            <p className="mt-1 text-xs sm:text-sm text-[#fff3d5]">Ready, my love? Blow at zero.</p>
+            <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-[#ffe2a2] font-bold">A moment just for you</p>
+            <p className="font-serif-luxury text-base sm:text-2xl font-semibold text-white drop-shadow-lg">Make a wish, my love</p>
+            <p className="mt-0.5 text-[11px] sm:text-sm text-[#fff3d5]">Ready, my love? Blow at zero.</p>
             <div className="countdown-ring" role="timer">
               <svg viewBox="0 0 48 48" aria-hidden="true">
                 <circle cx="24" cy="24" r="21" className="countdown-ring-track" />
