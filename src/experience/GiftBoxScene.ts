@@ -1579,8 +1579,8 @@ export class GiftBoxScene {
       this.camera.lookAt(this.currentLookAt);
       this.ambLight.intensity = THREE.MathUtils.lerp(this.ambLight.intensity, this.birthdayStage.ambient, this.damp(4, delta));
     } else {
-      this.orbitYaw = THREE.MathUtils.lerp(this.orbitYaw, this.targetOrbitYaw, this.damp(11.9, delta));
-      this.orbitPitch = THREE.MathUtils.lerp(this.orbitPitch, this.targetOrbitPitch, this.damp(11.9, delta));
+      this.orbitYaw = THREE.MathUtils.lerp(this.orbitYaw, this.targetOrbitYaw, this.damp(8, delta));
+      this.orbitPitch = THREE.MathUtils.lerp(this.orbitPitch, this.targetOrbitPitch, this.damp(8, delta));
       const hr = this.orbitRadius * Math.cos(this.orbitPitch);
       this.desiredCamera.set(
         this.cameraLookAt.x + hr * Math.sin(this.orbitYaw),
@@ -1592,8 +1592,8 @@ export class GiftBoxScene {
         this.currentLookAt.copy(this.cameraLookAt);
         this.snapCameraNext = false;
       } else {
-        this.camera.position.lerp(this.desiredCamera, this.damp(7.7, delta));
-        this.currentLookAt.lerp(this.cameraLookAt, this.damp(3.1, delta));
+        this.camera.position.lerp(this.desiredCamera, this.damp(4.2, delta));
+        this.currentLookAt.lerp(this.cameraLookAt, this.damp(2.6, delta));
       }
       this.camera.lookAt(this.currentLookAt);
     }
@@ -1664,7 +1664,7 @@ export class GiftBoxScene {
     // 5. Door
     if (this.doorGroup.visible) this.doorBadge.update(elapsed);
     if (this.doorGroup.visible && this.isDoorOpening) {
-      this.doorOpenProgress = THREE.MathUtils.lerp(this.doorOpenProgress, 1, this.damp(2.45, delta));
+      this.doorOpenProgress = THREE.MathUtils.lerp(this.doorOpenProgress, 1, this.damp(1.9, delta));
       this.doorHingedPanel.rotation.y = this.doorOpenProgress * (Math.PI / 2) * 0.95;
       this.doorHandle.rotation.z = Math.PI / 2 - this.doorOpenProgress * 0.5;
       this.doorLight.intensity = this.doorOpenProgress * 8.5;

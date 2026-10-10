@@ -20,6 +20,8 @@ import { EntryDoorNotification } from '../components/EntryDoorNotification';
 import { LoveAtmosphere } from '../components/LoveAtmosphere';
 import { Sparkles } from 'lucide-react';
 
+/** Scene-change fade length; every wait that follows a curtain change uses this so cuts never overlap the fade. */
+const CURTAIN_MS = 1000;
 const wait = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
 
 export const ExperienceRoot: React.FC = () => {
@@ -146,9 +148,9 @@ export const ExperienceRoot: React.FC = () => {
 
                 setTimeout(() => {
                   transitionTo('TEDDY_QUESTION');
-                }, 3000);
-              }, 1200);
-            }, 600);
+                }, 3800);
+              }, 2000);
+            }, 1100);
           } else {
             transitionTo('GIFT_SELECTION');
           }
@@ -171,7 +173,7 @@ export const ExperienceRoot: React.FC = () => {
         sceneRef.current?.startUnwrappingAnimation(() => {
           soundManager.playLidOpening();
           transitionTo('BOX_OPEN');
-          setTimeout(() => transitionTo('GIFT_SELECTION'), 800);
+          setTimeout(() => transitionTo('GIFT_SELECTION'), 1700); // let the opened box be admired
         });
       }),
     );
@@ -188,12 +190,14 @@ export const ExperienceRoot: React.FC = () => {
     setBirthdayPhase('wish');
     transitionTo('BIRTHDAY_WISH');
     await scene.blowOutBirthdayCandle(); if (!alive()) return;
-    await wait(300); if (!alive()) return;
+    await wait(1100);            // quiet beat after the wish if (!alive()) return;
 
     // 2. the knife cuts the cake
     setBirthdayPhase('cutting');
     transitionTo('CAKE_CUTTING');
     await scene.cutBirthdayCake(); if (!alive()) return;
+    await wait(800);             // let the cut settle before the cheering starts
+    if (!alive()) return;
 
     // 3. celebration
     setBirthdayPhase('celebrate');
@@ -203,6 +207,7 @@ export const ExperienceRoot: React.FC = () => {
     setCelebration('leaving');
     setBirthdayPhase(null);
     window.setTimeout(() => { if (birthdayRun.current === id) setCelebration('done'); }, 750);
+    await wait(1000); if (!alive()) return; // calm down before the next surprise
 
     // 4. a second door rises, then the message to open it
     await scene.presentBirthdayDoor(); if (!alive()) return;
@@ -214,9 +219,9 @@ export const ExperienceRoot: React.FC = () => {
     entryDoorOpenedRef.current = true;
     setEntryDoorOpened(true);
     transitionTo('ENTRY_DOOR_OPENING');
-    await wait(1150);
+    await wait(1600);            // let the door swing and the light spill out
     setCurtain(true);
-    await wait(560);
+    await wait(CURTAIN_MS + 150);
     sceneRef.current?.enterBirthdayRoom();
     setBirthdayPhase('countdown');
     transitionTo('BIRTHDAY_COUNTDOWN');
@@ -229,8 +234,9 @@ export const ExperienceRoot: React.FC = () => {
     giftDoorBusy.current = true;
     transitionTo('GIFT_TRANSITION');
     await sceneRef.current?.openBirthdayDoor();
+    await wait(500);             // a breath after the door opens
     setCurtain(true);
-    await wait(620);
+    await wait(CURTAIN_MS + 150);
     sceneRef.current?.leaveBirthdayRoom();
     transitionTo('GIFT_READY');
     setCurtain(false);
@@ -255,7 +261,7 @@ export const ExperienceRoot: React.FC = () => {
     // After teddy walks away, show the in-world notification
     setTimeout(() => {
       transitionTo('NOTIFICATION');
-    }, 2800);
+    }, 3600);
   }, [transitionTo]);
 
   // Dismiss notification -> Fake Door appears
@@ -271,24 +277,24 @@ export const ExperienceRoot: React.FC = () => {
     const alive = () => proposalRun.current === id;
 
     setCurtain(true);                       // fade to black
-    await wait(800); if (!alive()) return;
+    await wait(CURTAIN_MS + 100); if (!alive()) return;
 
     transitionTo('PROPOSAL_ENTER');
     scene.enterProposalRoom();
     soundManager.playPlaylist('proposal');
-    await wait(200); if (!alive()) return;
+    await wait(300); if (!alive()) return;
     setCurtain(false);                      // fade into the balloon room
-    await wait(1100); if (!alive()) return;
+    await wait(CURTAIN_MS + 900); if (!alive()) return;
 
     await scene.playProposalWalkIn();       if (!alive()) return;
-    await wait(900); if (!alive()) return;  // pause — they look at each other
+    await wait(1700); if (!alive()) return;  // pause — they look at each other
 
     await scene.playRoseAndKneel();         if (!alive()) return;
-    await wait(700); if (!alive()) return;  // beat before he asks
+    await wait(1200); if (!alive()) return;  // beat before he asks
 
     transitionTo('PROPOSAL_ASK');           // bubble appears…
     void scene.burstSparkles();             // …at the exact same moment sparkles burst
-    await wait(4200); if (!alive()) return;
+    await wait(4800); if (!alive()) return;
 
     transitionTo('PROPOSAL_ANSWER');        // her YES / Definitely yes bubble
   }, [transitionTo]);
@@ -301,15 +307,15 @@ export const ExperienceRoot: React.FC = () => {
     const alive = () => proposalRun.current === id;
     if (!scene) return;
 
-    await wait(400); if (!alive()) return;  // let her answer sink in
+    await wait(1000); if (!alive()) return; // let her answer sink in
     transitionTo('PROPOSAL_ACCEPTED');
     await scene.playAcceptRose();           if (!alive()) return;
 
-    await wait(800); if (!alive()) return;  // pause before the kiss
+    await wait(1400); if (!alive()) return;  // pause before the kiss
     transitionTo('PROPOSAL_KISS');
     await scene.playKiss();                 if (!alive()) return;
 
-    await wait(600); if (!alive()) return;
+    await wait(2400); if (!alive()) return; // let the moment linger
     transitionTo('PROPOSAL_NOTIFICATION');  // stays until she taps it
   }, [transitionTo]);
 
@@ -335,7 +341,7 @@ export const ExperienceRoot: React.FC = () => {
     soundManager.primePlaylist('proposal');
     setProposalDoorOpened(true);
     transitionTo('DOOR_OPENING');
-    window.setTimeout(() => void runProposal(), 1700); // let the door swing open first
+    window.setTimeout(() => void runProposal(), 2100); // let the door swing open first
   }, [transitionTo, runProposal]);
 
   // Audio toggles
@@ -475,10 +481,10 @@ export const ExperienceRoot: React.FC = () => {
 
       {/* Scene-change curtain */}
       <div
-        className="fixed inset-0 z-[60] bg-black pointer-events-none transition-opacity duration-700"
-        style={{ opacity: curtain ? 1 : 0 }}
+        className="fixed inset-0 z-[60] bg-black pointer-events-none"
+        style={{ opacity: curtain ? 1 : 0, transition: `opacity ${CURTAIN_MS}ms cubic-bezier(.45,.05,.35,1)` }}
       />
 
     </div>
   );
-};
+}; 
