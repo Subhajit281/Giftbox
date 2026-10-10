@@ -7,7 +7,7 @@ interface BirthdayCeremonyProps {
   onCountdownComplete: () => void;
 }
 
-const COUNTDOWN_SECONDS = 8;
+export const BIRTHDAY_COUNTDOWN_SECONDS = 10;
 const RING = 2 * Math.PI * 21;
 
 /** Captions and the timer only. The cake, candle and knife are all real 3D in the scene. */
@@ -20,8 +20,8 @@ export const BirthdayCeremony: React.FC<BirthdayCeremonyProps> = ({ phase, onCou
     let done = false;
     const timer = window.setInterval(() => {
       const t = (performance.now() - startedAt) / 1000;
-      setElapsed(Math.min(COUNTDOWN_SECONDS, t));
-      if (t >= COUNTDOWN_SECONDS && !done) {
+      setElapsed(Math.min(BIRTHDAY_COUNTDOWN_SECONDS, t));
+      if (t >= BIRTHDAY_COUNTDOWN_SECONDS && !done) {
         done = true;
         window.clearInterval(timer);
         onCountdownComplete();
@@ -32,15 +32,16 @@ export const BirthdayCeremony: React.FC<BirthdayCeremonyProps> = ({ phase, onCou
 
   if (phase === 'celebrate') return null;
 
-  const secondsLeft = Math.max(0, Math.ceil(COUNTDOWN_SECONDS - elapsed));
+  const secondsLeft = Math.max(0, Math.ceil(BIRTHDAY_COUNTDOWN_SECONDS - elapsed));
 
   return (
     <div className="birthday-ceremony fixed inset-0 z-40 pointer-events-none flex flex-col items-center justify-start safe-top" aria-live="polite">
-      <div className="birthday-countdown text-center mt-14 sm:mt-16 px-4">
+      <div className="birthday-countdown-card text-center mt-2 sm:mt-10 px-3 py-2.5 sm:px-4 sm:py-5">
         {phase === 'countdown' ? (
           <>
-            <p className="text-[11px] sm:text-xs uppercase tracking-[0.24em] text-[#ffe2a2] font-bold">Make a wish</p>
-            <p className="font-serif-luxury text-xl sm:text-3xl font-bold text-white drop-shadow-lg">Blow the candle when the timer ends</p>
+            <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-[#ffe2a2] font-bold">A moment just for you</p>
+            <p className="font-serif-luxury text-base sm:text-2xl font-semibold text-white drop-shadow-lg">Make a wish, my love</p>
+            <p className="mt-0.5 text-[11px] sm:text-sm text-[#fff3d5]">Ready, my love? Blow at zero.</p>
             <div className="countdown-ring" role="timer">
               <svg viewBox="0 0 48 48" aria-hidden="true">
                 <circle cx="24" cy="24" r="21" className="countdown-ring-track" />
@@ -48,11 +49,12 @@ export const BirthdayCeremony: React.FC<BirthdayCeremonyProps> = ({ phase, onCou
                   cx="24" cy="24" r="21"
                   className="countdown-ring-fill"
                   strokeDasharray={RING}
-                  strokeDashoffset={RING * (elapsed / COUNTDOWN_SECONDS)}
+                  strokeDashoffset={RING * (elapsed / BIRTHDAY_COUNTDOWN_SECONDS)}
                 />
               </svg>
               <span>{secondsLeft}</span>
             </div>
+            <p className="mt-1 text-[10px] uppercase tracking-[0.22em] text-[#ffe2a2]/85">seconds to your wish</p>
           </>
         ) : phase === 'wish' ? (
           <p className="font-serif-luxury text-xl sm:text-3xl font-bold text-[#fff0c8] drop-shadow-lg">Your wish is on its way ✦</p>

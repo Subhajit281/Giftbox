@@ -31,6 +31,8 @@ export interface ExperienceConfig {
   unlockName: string;
   recipientName: string;
   creatorName: string;
+  entryNotificationMessage: string;
+  giftDoorNotificationMessage: string;
   whatsappNumber: string;
   whatsappMessage: string;
   customLetterText: string;
@@ -41,6 +43,8 @@ export const DEFAULT_CONFIG: ExperienceConfig = {
   unlockName: 'Subhajit',
   recipientName: 'Diya',
   creatorName: 'Subhajit',
+  entryNotificationMessage: 'I made this little birthday world just for you. I hope it makes you smile, my love. ❤️',
+  giftDoorNotificationMessage: 'One more little surprise is waiting, sweetheart. Tap the door and come see. ❤️',
   whatsappNumber: '916001155729',
   whatsappMessage: "Please write below if you liked it. Thats a small gift I thought of making for you while we are still away. Its just a beginning, I want to celebrate your birthday in much bigger ways in future🥺❤️.",
   customLetterText: `From the very first moment our paths crossed, you brought a warmth and magic into my life that nothing else could ever compare to.
@@ -306,4 +310,3 @@ export const INITIAL_GIFTS: GiftItem[] = [
   //   },
   // },
 ];
-

@@ -731,11 +731,11 @@ export class BirthdayStage {
   private buildExitDoor() {
     const g = this.exitDoor;
     g.position.set(0, FLOOR_Y, EXIT_DOOR_Z);
-    const H = 3.3;
+    const H = 3.72;
     const W = 1.86;
     const gold = this.metal(0xe3bd68, 0.3, 1.1);
 
-    // a border, not a slab: two jambs and a head
+    // Match the front and proposal doors: a deep-wine panel, warm metallic frame, and birthday plaque.
     for (const sx of [-1, 1]) {
       const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.2, H + 0.12, 0.16), gold);
       jamb.position.set(sx * (W / 2 + 0.1), (H + 0.12) / 2, 0);
@@ -744,18 +744,9 @@ export class BirthdayStage {
     const head = new THREE.Mesh(new THREE.BoxGeometry(W + 0.4, 0.2, 0.16), gold);
     head.position.set(0, H + 0.02, 0);
     g.add(head);
-    const lintel = new THREE.Mesh(new THREE.BoxGeometry(W + 0.7, 0.16, 0.2), gold);
+    const lintel = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.16, 0.2), gold);
     lintel.position.set(0, H + 0.2, 0.03);
     g.add(lintel);
-    const heart = new THREE.Shape();
-    heart.moveTo(0, -0.1);
-    heart.bezierCurveTo(-0.2, 0.06, -0.12, 0.2, 0, 0.1);
-    heart.bezierCurveTo(0.12, 0.2, 0.2, 0.06, 0, -0.1);
-    const crest = new THREE.Mesh(new THREE.ExtrudeGeometry(heart, { depth: 0.05, bevelEnabled: false }), new THREE.MeshStandardMaterial({ color: 0xc4284f, roughness: 0.3, emissive: 0x3a0714, emissiveIntensity: 0.5 }));
-    crest.position.set(0, H + 0.22, 0.14);
-    crest.scale.setScalar(1.3);
-    g.add(crest);
-
     // what lies beyond: warm light
     this.exitBack = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ color: 0xffd9a2, toneMapped: false }));
     this.exitBack.position.set(0, H / 2, -0.07);
@@ -763,14 +754,19 @@ export class BirthdayStage {
 
     // hinged panel, hinge on the left
     this.exitPanel.position.set(-W / 2, 0, 0.0);
-    const woodMat = new THREE.MeshStandardMaterial({ color: 0x7a1e45, roughness: 0.4, metalness: 0.1, envMap: this.envMap, envMapIntensity: 0.5 });
+    const woodMat = new THREE.MeshStandardMaterial({ color: 0x351522, roughness: 0.32, metalness: 0.24, envMap: this.envMap, envMapIntensity: 0.55 });
     const panel = new THREE.Mesh(new THREE.BoxGeometry(W, H, 0.09), woodMat);
     panel.position.set(W / 2, H / 2, 0.02);
     panel.castShadow = true;
     panel.userData = { isDoor: true };
     this.exitPanel.add(panel);
-    const insetMat = new THREE.MeshStandardMaterial({ color: 0x912654, roughness: 0.38 });
-    for (const [px, py, w, h] of [[W / 2, H * 0.74, W * 0.66, H * 0.3], [W / 2, H * 0.31, W * 0.66, H * 0.42]]) {
+    for (const y of [H * 0.165, H / 2, H * 0.835]) {
+      const hinge = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.28, 0.035), gold);
+      hinge.position.set(0.08, y, 0.095);
+      this.exitPanel.add(hinge);
+    }
+    const insetMat = new THREE.MeshStandardMaterial({ color: 0x492031, roughness: 0.3, metalness: 0.18 });
+    for (const [px, py, w, h] of [[W / 2, H * 0.72, 1.18, 1.08], [W / 2, H * 0.28, 1.18, 1.28]]) {
       const inset = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.03), insetMat);
       inset.position.set(px, py, 0.075);
       inset.userData = { isDoor: true };
@@ -780,24 +776,22 @@ export class BirthdayStage {
       edge.userData = { isDoor: true };
       this.exitPanel.add(edge);
     }
-    this.exitKnob = new THREE.Mesh(new THREE.SphereGeometry(0.085, 18, 14), this.metal(0xf1cc77, 0.16, 1.5));
-    this.exitKnob.position.set(W - 0.2, H * 0.48, 0.15);
+    const knobX = W - 0.32;
+    const knobY = H * 0.48;
+    const rosette = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.045, 24), gold);
+    rosette.rotation.x = Math.PI / 2;
+    rosette.position.set(knobX, knobY, 0.12);
+    this.exitPanel.add(rosette);
+    this.exitKnob = new THREE.Mesh(new THREE.SphereGeometry(0.095, 24, 18), this.metal(0xf1cc77, 0.16, 1.5));
+    this.exitKnob.position.set(knobX, knobY, 0.21);
     this.exitKnob.userData = { isDoor: true };
     this.exitPanel.add(this.exitKnob);
     g.add(this.exitPanel);
 
-    // "Entering the 20's" medallion on the panel + flower garlands over the lintel and down the jambs
-    this.exitBadge = new DoorBadge(1.5);
-    this.exitBadge.badge.position.set(W / 2, H * 0.62, 0.1);
+    // Coordinate the birthday-room exit with the same understated 20th-birthday detail.
+    this.exitBadge = new DoorBadge(0.64);
+    this.exitBadge.badge.position.set(W / 2, H * 0.72, 0.1);
     this.exitPanel.add(this.exitBadge.badge);
-    const garlandTop = DoorBadge.garland(W + 1.1, 0.5, 0, 5);
-    garlandTop.position.set(0, H + 0.2, 0.17);
-    g.add(garlandTop);
-    for (const sx of [-1, 1]) {
-      const side = DoorBadge.garland(H + 0.2, 0.46, Math.PI / 2, 9 + sx);
-      side.position.set(sx * (W / 2 + 0.1), (H + 0.12) / 2, 0.12);
-      g.add(side);
-    }
 
     this.exitLight = new THREE.PointLight(0xffd9a2, 0, 11, 2);
     this.exitLight.position.set(0, 1.7, 1.2);
@@ -896,6 +890,7 @@ export class BirthdayStage {
     this.partyA.intensity = 0;
     this.partyB.intensity = 0;
     this.exitPanel.rotation.y = 0;
+    this.exitKnob.rotation.y = 0;
     this.exitLight.intensity = 0;
     (this.exitSpill.material as THREE.MeshBasicMaterial).opacity = 0;
     this.exitDoor.visible = false;
@@ -909,9 +904,9 @@ export class BirthdayStage {
     this.reset();
     this.cameraActive = true;
     if (this.isMobile) {
-      // Keep the cake close and still for the countdown and candle blow.
+      // Leave enough breathing room around the cake while keeping the flame easy to see.
       this.drift = 0;
-      this.snapCamera(this.frame(V(0, 1.05, 0), 1.9, 2.8, 0, 0.1));
+      this.snapCamera(this.frame(V(0, 0.85, 0), 2.7, 4, 0, 0.08));
     } else {
       this.snapCamera(this.frame(V(0, 0.55, 0), 5.2, 3.7, 0, 0.16));
     }
@@ -1199,10 +1194,13 @@ export class BirthdayStage {
   /** A door rises out of the floor at the back of the room. */
   async presentExitDoor(): Promise<void> {
     this.exitDoor.visible = true;
-    this.moveCamera(this.frame(V(0, 1.3, EXIT_DOOR_Z), 4.2, 4.6, 0, 0.36), 2.2);
+    const doorCenterY = FLOOR_Y + 3.72 / 2;
+    const width = this.isMobile ? 3.85 : 5.4;
+    const height = 5.55;
+    this.moveCamera(this.frame(V(0, doorCenterY + 0.35, EXIT_DOOR_Z), width, height, 0, 0), 1.55);
     const startY = FLOOR_Y - 3.3 - 1;
     this.doorSparks.rate = 140;
-    await this.run(1.7, (u) => {
+    await this.run(1.35, (u) => {
       this.exitDoor.position.y = lerp(startY, FLOOR_Y, easeBack(u));
       this.exitLight.intensity = 3.2 * seg(u, 0.4, 1);
       this.ambient = lerp(0.7, 0.72, u);
@@ -1216,7 +1214,7 @@ export class BirthdayStage {
     await this.run(1.35, (u) => {
       const e = easeInOut(u);
       this.exitPanel.rotation.y = e * (Math.PI / 2) * 0.92;
-      this.exitKnob.rotation.z = -Math.sin(seg(u, 0, 0.25) * Math.PI) * 0.6;
+      this.exitKnob.rotation.y = -Math.sin(seg(u, 0, 0.25) * Math.PI) * 0.6;
       this.exitLight.intensity = lerp(3.2, 12, e);
       (this.exitSpill.material as THREE.MeshBasicMaterial).opacity = 0.9 * e;
       this.exitBack.scale.setScalar(1 + e * 0.04);

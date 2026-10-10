@@ -10,6 +10,7 @@ class ProceduralSoundEngine {
   private bgmInterval: number | null = null;
   private masterGain: GainNode | null = null;
   private playlistAudio = new Map<PlaylistSlot, HTMLAudioElement>();
+  private loopingPlaylists = new Set<PlaylistSlot>();
   private activePlaylist: PlaylistSlot | null = null;
 
   constructor() {
@@ -34,9 +35,6 @@ class ProceduralSoundEngine {
     if (this.masterGain && this.ctx) {
       this.masterGain.gain.setTargetAtTime(muted ? 0 : 0.7, this.ctx.currentTime, 0.05);
     }
-    this.playlistAudio.forEach((audio) => {
-      audio.volume = muted ? 0 : 0.68;
-    });
   }
 
   public getMuted(): boolean {
@@ -647,31 +645,52 @@ class ProceduralSoundEngine {
     const tracks = AUDIO_PLAYLIST[slot];
     const audio = this.getPlaylistAudio(slot);
 
+    if (!tracks.length) {
+      if (this.activePlaylist === slot) this.activePlaylist = null;
+      return;
+    }
     if (index >= tracks.length) {
-      this.activePlaylist = null;
+      if (this.loopingPlaylists.has(slot)) {
+        this.playPlaylistTrack(slot, 0);
+      } else {
+        if (this.activePlaylist === slot) this.activePlaylist = null;
+      }
       return;
     }
 
     audio.onended = () => this.playPlaylistTrack(slot, index + 1);
-    audio.onerror = () => this.playPlaylistTrack(slot, index + 1);
+    audio.onerror = () => {
+      if (index + 1 < tracks.length) this.playPlaylistTrack(slot, index + 1);
+      else {
+        audio.onended = null;
+        audio.onerror = null;
+        this.loopingPlaylists.delete(slot);
+        if (this.activePlaylist === slot) this.activePlaylist = null;
+      }
+    };
     audio.src = tracks[index];
     audio.currentTime = 0;
     audio.muted = false;
-    audio.volume = this.isMuted ? 0 : 0.68;
+    audio.volume = 0.68;
     void audio.play().catch(() => {
       // A missing file or a browser autoplay restriction should leave the experience usable.
     });
   }
 
   /** Starts every valid file in the configured slot, one after another. */
-  public playPlaylist(slot: PlaylistSlot) {
+  public playPlaylist(slot: PlaylistSlot, loop = false) {
+    const overlaysRoomMusic = slot === 'giftOpen' && this.loopingPlaylists.size > 0;
     this.playlistAudio.forEach((audio, key) => {
-      if (key !== slot) {
+      if (key !== slot && (!overlaysRoomMusic || !this.loopingPlaylists.has(key))) {
         audio.pause();
         audio.currentTime = 0;
       }
     });
-    this.activePlaylist = slot;
+    if (!overlaysRoomMusic) {
+      this.loopingPlaylists.clear();
+      if (loop) this.loopingPlaylists.add(slot);
+      this.activePlaylist = slot;
+    }
     this.playPlaylistTrack(slot, 0);
   }
 
@@ -684,7 +703,7 @@ class ProceduralSoundEngine {
     audio.muted = true;
     void audio.play().then(() => {
       audio.muted = false;
-      audio.volume = this.isMuted ? 0 : 0.68;
+      audio.volume = 0.68;
       // If the room has already started its playlist, do not interrupt it.
       if (this.activePlaylist !== slot) {
         audio.pause();
@@ -700,6 +719,7 @@ class ProceduralSoundEngine {
       if (!slot || key === slot) {
         audio.pause();
         audio.currentTime = 0;
+        this.loopingPlaylists.delete(key);
       }
     });
     if (!slot || this.activePlaylist === slot) this.activePlaylist = null;
@@ -707,4 +727,3 @@ class ProceduralSoundEngine {
 }
 
 export const soundManager = new ProceduralSoundEngine();
-
