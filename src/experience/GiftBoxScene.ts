@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { GiftItem } from '../content/giftData';
 import type { ExperienceState } from '../state/ExperienceState';
+import { BirthdayStage } from './birthday/BirthdayStage';
 
 const ROOM_X = 80; // the proposal room lives far from the gift world, so no hiding/unhiding is needed
 const BIRTHDAY_ROOM_X = 40;
@@ -119,7 +120,12 @@ export class GiftBoxScene {
 
   // Birthday room shown before the gift journey.
   private birthdayRoomGroup = new THREE.Group();
-  private birthdayExitDoor = new THREE.Group();
+  private birthdayStage!: BirthdayStage;
+
+  // Everything belonging to the gift room lives under one group, so each story stage shows only its own world.
+  private giftWorld = new THREE.Group();
+  private ambLight!: THREE.AmbientLight;
+  private snapCameraNext = false;
 
   // State & Camera targets
   private currentState: ExperienceState = 'BOOT';
@@ -240,10 +246,9 @@ export class GiftBoxScene {
     this.createDoor();
     this.createBirthdayRoom();
 
-    this.scene.add(this.mainBoxGroup);
-    this.scene.add(this.giftsGroup);
-    this.scene.add(this.binGroup);
-    this.scene.add(this.teddyGroup);
+    this.giftWorld.add(this.mainBoxGroup, this.giftsGroup, this.binGroup, this.teddyGroup);
+    this.giftWorld.visible = false; // nothing but the dark until the story starts
+    this.scene.add(this.giftWorld);
     this.scene.add(this.doorGroup);
     this.scene.add(this.birthdayRoomGroup);
 
@@ -263,8 +268,8 @@ export class GiftBoxScene {
 
   private setupLighting() {
     // Ambient soft room tone
-    const ambLight = new THREE.AmbientLight(0xffe9dc, 1.75);
-    this.scene.add(ambLight);
+    this.ambLight = new THREE.AmbientLight(0xffe9dc, 1.75);
+    this.scene.add(this.ambLight);
 
     // Warm Key Spotlight casting soft shadow
     const spot = new THREE.SpotLight(0xffefd0, 4.4);
@@ -304,7 +309,7 @@ export class GiftBoxScene {
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -1.15;
     floor.receiveShadow = true;
-    this.scene.add(floor);
+    this.giftWorld.add(floor);
 
     // Subtle circular gold-trimmed pedestal under the box
     const pedGeo = new THREE.CylinderGeometry(2.9, 3.1, 0.12, 48);
@@ -316,14 +321,14 @@ export class GiftBoxScene {
     const ped = new THREE.Mesh(pedGeo, pedMat);
     ped.position.y = -1.1;
     ped.receiveShadow = true;
-    this.scene.add(ped);
+    this.giftWorld.add(ped);
 
     const inlay = new THREE.Mesh(
       new THREE.CylinderGeometry(2.74, 2.85, 0.035, 64),
       new THREE.MeshStandardMaterial({ color: 0x5b1a36, roughness: 0.42, metalness: 0.34 }),
     );
     inlay.position.y = -1.015;
-    this.scene.add(inlay);
+    this.giftWorld.add(inlay);
 
     // Golden trim around pedestal
     const rimGeo = new THREE.TorusGeometry(3.05, 0.035, 12, 48);
@@ -331,12 +336,12 @@ export class GiftBoxScene {
     const rim = new THREE.Mesh(rimGeo, rimMat);
     rim.rotation.x = Math.PI / 2;
     rim.position.y = -1.04;
-    this.scene.add(rim);
+    this.giftWorld.add(rim);
 
     const innerRim = new THREE.Mesh(new THREE.TorusGeometry(2.66, 0.018, 10, 64), rimMat);
     innerRim.rotation.x = Math.PI / 2;
     innerRim.position.y = -0.99;
-    this.scene.add(innerRim);
+    this.giftWorld.add(innerRim);
 
     // Floating golden dust particles
     const count = this.isMobile ? 120 : 220;
@@ -357,7 +362,7 @@ export class GiftBoxScene {
       blending: THREE.AdditiveBlending,
     });
     this.particles = new THREE.Points(geo, pMat);
-    this.scene.add(this.particles);
+    this.giftWorld.add(this.particles);
   }
 
   // Build the grand gift box with 4 unfolding explosion-box walls and removable lid
@@ -987,6 +992,16 @@ export class GiftBoxScene {
     this.doorLight.position.set(0, 1.5, -0.6);
     this.doorGroup.add(this.doorLight);
 
+    // A floor of its own, so the entry door stands alone once the gift world is hidden
+    const doorFloor = new THREE.Mesh(
+      new THREE.PlaneGeometry(30, 24),
+      new THREE.MeshStandardMaterial({ color: 0x180b14, roughness: 0.6, metalness: 0.18 }),
+    );
+    doorFloor.rotation.x = -Math.PI / 2;
+    doorFloor.position.set(0, -1.16, 6);
+    doorFloor.receiveShadow = true;
+    this.doorGroup.add(doorFloor);
+
     // Door backdrop
     const bgGeo = new THREE.PlaneGeometry(1.9, 4.1);
     const bgMat = new THREE.MeshBasicMaterial({ color: 0xffd8a0 });
@@ -1018,27 +1033,6 @@ export class GiftBoxScene {
     );
     backWall.position.set(0, 4.8, -5.8);
     room.add(backWall);
-
-    // A few bright birthday cards on the wall, each slightly turned like real paper cards.
-    const cardColors = [0xffe7a7, 0xffd5e1, 0xd5f2e6, 0xf9c5d6, 0xffefd0];
-    for (let i = 0; i < 9; i++) {
-      const card = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.9, 1.2),
-        new THREE.MeshBasicMaterial({ color: cardColors[i % cardColors.length] }),
-      );
-      card.position.set(-5.6 + (i % 5) * 2.8, 3.0 + Math.floor(i / 5) * 1.5, -5.66);
-      card.rotation.z = (i % 2 === 0 ? 1 : -1) * (0.05 + (i % 3) * 0.025);
-      room.add(card);
-
-      const ribbon = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.9, 0.07),
-        new THREE.MeshBasicMaterial({ color: 0xbc2853 }),
-      );
-      ribbon.position.copy(card.position);
-      ribbon.position.z += 0.01;
-      ribbon.rotation.z = card.rotation.z;
-      room.add(ribbon);
-    }
 
     // Warm fairy lights strung across the birthday wall.
     const wire = new THREE.Mesh(
@@ -1079,42 +1073,38 @@ export class GiftBoxScene {
     rose.position.set(-4.5, 1.8, 1);
     room.add(rose);
 
-    // This door stays hidden until the cake has been cut, then becomes the way to the gift room.
-    this.birthdayExitDoor.position.set(0, 1.0, -5.52);
-    this.birthdayExitDoor.visible = false;
-    const exitFrame = new THREE.Mesh(
-      new THREE.BoxGeometry(2.15, 3.55, 0.12),
-      new THREE.MeshStandardMaterial({ color: 0xf0bd63, emissive: 0x3f1808, emissiveIntensity: 0.32, roughness: 0.36, metalness: 0.5 }),
-    );
-    const exitPanel = new THREE.Mesh(
-      new THREE.BoxGeometry(1.76, 3.2, 0.09),
-      new THREE.MeshStandardMaterial({ color: 0x761e45, emissive: 0x2a0617, emissiveIntensity: 0.26, roughness: 0.42, metalness: 0.18 }),
-    );
-    exitPanel.position.z = 0.08;
-    const exitKnob = new THREE.Mesh(
-      new THREE.SphereGeometry(0.08, 12, 12),
-      new THREE.MeshStandardMaterial({ color: 0xf6d47c, metalness: 0.9, roughness: 0.18 }),
-    );
-    exitKnob.position.set(0.56, -0.12, 0.16);
-    this.birthdayExitDoor.add(exitFrame, exitPanel, exitKnob);
-    room.add(this.birthdayExitDoor);
+    // The table, cake, candle, knife, celebration and the exit door are all real 3D, built by the stage.
+    this.birthdayStage = new BirthdayStage(this.renderer, this.isMobile);
+    this.birthdayStage.setViewport(this.camera.fov, this.camera.aspect);
+    room.add(this.birthdayStage.group);
   }
 
   public enterBirthdayRoom() {
     this.doorGroup.visible = false;
     this.birthdayRoomGroup.visible = true;
+    this.birthdayStage.setViewport(this.camera.fov, this.camera.aspect);
+    this.birthdayStage.enter();
   }
 
   public leaveBirthdayRoom() {
+    this.birthdayStage.leave();
     this.birthdayRoomGroup.visible = false;
-    this.birthdayExitDoor.visible = false;
+    this.ambLight.intensity = 1.75;
     this.doorGroup.visible = false;
     this.isDoorOpening = false;
     this.doorOpenProgress = 0;
     this.doorHingedPanel.rotation.y = 0;
     this.doorHandle.rotation.z = Math.PI / 2;
     this.doorLight.intensity = 0;
+    this.snapCameraNext = true;
   }
+
+  public startBirthdayCountdown(seconds: number) { return this.birthdayStage.beginCountdown(seconds); }
+  public blowOutBirthdayCandle() { return this.birthdayStage.blowOut(); }
+  public cutBirthdayCake() { return this.birthdayStage.cutCake(); }
+  public celebrateBirthday() { return this.birthdayStage.celebrate(); }
+  public presentBirthdayDoor() { return this.birthdayStage.presentExitDoor(); }
+  public openBirthdayDoor() { return this.birthdayStage.openExitDoor(); }
 
   // Trigger the 3D ribbon untying and box explosion / walls falling down
  public startUnwrappingAnimation(onComplete?: () => void) {
@@ -1225,9 +1215,17 @@ export class GiftBoxScene {
 
   // State transitions from orchestrator
   public setState(newState: ExperienceState) {
+    const prev = this.currentState;
     this.currentState = newState;
     const isMobile = this.container.clientWidth < 768;
     this.orbitLocked = false;
+
+    // Each story stage shows only its own world.
+    const inEntry = newState === 'ENTRY_DOOR' || newState === 'ENTRY_DOOR_OPENING';
+    const inBirthday =
+      newState === 'BIRTHDAY_COUNTDOWN' || newState === 'BIRTHDAY_WISH' || newState === 'CAKE_CUTTING' ||
+      newState === 'BIRTHDAY_CELEBRATION' || newState === 'GIFT_DOOR_READY' || newState === 'GIFT_TRANSITION';
+    this.giftWorld.visible = !(newState === 'BOOT' || inEntry || inBirthday);
 
     switch (newState) {
       case 'BOOT':
@@ -1240,26 +1238,21 @@ export class GiftBoxScene {
       case 'ENTRY_DOOR':
       case 'ENTRY_DOOR_OPENING':
         this.doorGroup.visible = true;
+        this.orbitLocked = true; // a still, straight-on view of the door: no camera rotation at all
         this.cameraTargetPos.set(0, isMobile ? 2.0 : 1.6, isMobile ? 3.6 : 2.4);
         this.cameraLookAt.set(0, 1.1, -4.5);
+        if (prev === 'BOOT') this.snapCameraNext = true;
         if (newState === 'ENTRY_DOOR_OPENING') this.isDoorOpening = true;
         break;
 
       case 'BIRTHDAY_COUNTDOWN':
       case 'BIRTHDAY_WISH':
       case 'CAKE_CUTTING':
-      case 'GIFT_TRANSITION':
-        this.birthdayExitDoor.visible = false;
-        this.orbitLocked = true;
-        this.cameraTargetPos.set(BIRTHDAY_ROOM_X, isMobile ? 1.55 : 1.45, isMobile ? 6.9 : 6.1);
-        this.cameraLookAt.set(BIRTHDAY_ROOM_X, 1.0, -1.6);
-        break;
-
+      case 'BIRTHDAY_CELEBRATION':
       case 'GIFT_DOOR_READY':
-        this.birthdayExitDoor.visible = true;
+      case 'GIFT_TRANSITION':
+        // the stage drives the camera itself
         this.orbitLocked = true;
-        this.cameraTargetPos.set(BIRTHDAY_ROOM_X, isMobile ? 1.55 : 1.45, isMobile ? 6.9 : 6.1);
-        this.cameraLookAt.set(BIRTHDAY_ROOM_X, 1.0, -1.6);
         break;
 
       case 'GIFT_READY':
@@ -1346,6 +1339,11 @@ export class GiftBoxScene {
 
     for (const hit of hits) {
       let obj: THREE.Object3D | null = hit.object;
+      let shown = true;
+      for (let o: THREE.Object3D | null = obj; o; o = o.parent) {
+        if (!o.visible) { shown = false; break; }
+      }
+      if (!shown) continue;
 
       if (obj.userData?.isDoor) {
         this.callbacks.onDoorClick();
@@ -1424,6 +1422,7 @@ export class GiftBoxScene {
       this.camera.aspect = w / h;
       this.camera.fov = this.isMobile ? 70 : 45;
       this.camera.updateProjectionMatrix();
+      this.birthdayStage.setViewport(this.camera.fov, this.camera.aspect);
       this.renderer.setSize(w, h);
       // Only re-frame when crossing the phone/desktop breakpoint, so URL-bar resizes don't reset the user's view.
       if (wasMobile !== this.isMobile) this.setState(this.currentState);
@@ -1490,18 +1489,35 @@ export class GiftBoxScene {
     const elapsed = this.clock.getElapsed();
     const dt60 = delta * 60;
 
-    // 1. Camera orbit (same feel as the old 0.18 / 0.12 / 0.05 per-frame lerps, but frame-rate independent)
-    this.orbitYaw = THREE.MathUtils.lerp(this.orbitYaw, this.targetOrbitYaw, this.damp(11.9, delta));
-    this.orbitPitch = THREE.MathUtils.lerp(this.orbitPitch, this.targetOrbitPitch, this.damp(11.9, delta));
-    const hr = this.orbitRadius * Math.cos(this.orbitPitch);
-    this.desiredCamera.set(
-      this.cameraLookAt.x + hr * Math.sin(this.orbitYaw),
-      this.cameraLookAt.y + this.orbitRadius * Math.sin(this.orbitPitch),
-      this.cameraLookAt.z + hr * Math.cos(this.orbitYaw),
-    );
-    this.camera.position.lerp(this.desiredCamera, this.damp(7.7, delta));
-    this.currentLookAt.lerp(this.cameraLookAt, this.damp(3.1, delta));
-    this.camera.lookAt(this.currentLookAt);
+    // 1. Camera. The birthday stage directs its own cinematic shots; everywhere else uses the orbit presets.
+    const stageCam = this.birthdayRoomGroup.visible && this.birthdayStage.cameraActive;
+    if (stageCam) {
+      this.birthdayStage.update(delta, elapsed);
+      this.camera.position.copy(this.birthdayStage.camera.pos);
+      this.camera.position.x += BIRTHDAY_ROOM_X;
+      this.currentLookAt.copy(this.birthdayStage.camera.look);
+      this.currentLookAt.x += BIRTHDAY_ROOM_X;
+      this.camera.lookAt(this.currentLookAt);
+      this.ambLight.intensity = THREE.MathUtils.lerp(this.ambLight.intensity, this.birthdayStage.ambient, this.damp(4, delta));
+    } else {
+      this.orbitYaw = THREE.MathUtils.lerp(this.orbitYaw, this.targetOrbitYaw, this.damp(11.9, delta));
+      this.orbitPitch = THREE.MathUtils.lerp(this.orbitPitch, this.targetOrbitPitch, this.damp(11.9, delta));
+      const hr = this.orbitRadius * Math.cos(this.orbitPitch);
+      this.desiredCamera.set(
+        this.cameraLookAt.x + hr * Math.sin(this.orbitYaw),
+        this.cameraLookAt.y + this.orbitRadius * Math.sin(this.orbitPitch),
+        this.cameraLookAt.z + hr * Math.cos(this.orbitYaw),
+      );
+      if (this.snapCameraNext) {
+        this.camera.position.copy(this.desiredCamera);
+        this.currentLookAt.copy(this.cameraLookAt);
+        this.snapCameraNext = false;
+      } else {
+        this.camera.position.lerp(this.desiredCamera, this.damp(7.7, delta));
+        this.currentLookAt.lerp(this.cameraLookAt, this.damp(3.1, delta));
+      }
+      this.camera.lookAt(this.currentLookAt);
+    }
 
     // 2. Dust particles
     if (this.particlePositions) {
@@ -2393,6 +2409,7 @@ export class GiftBoxScene {
     this.container.removeEventListener('pointerup', this.onPointerUp);
     this.container.removeEventListener('pointercancel', this.onPointerCancel);
     this.clock.dispose();
+    this.birthdayStage.dispose();
     this.scene.traverse((o) => {
       const m = o as THREE.Mesh;
       m.geometry?.dispose?.();

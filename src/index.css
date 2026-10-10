@@ -606,97 +606,40 @@ div[class*="rounded-"] {
 /* ───────── Birthday room ceremony ───────── */
 .welcome-notification { box-shadow: 0 16px 38px rgba(31, 2, 15, 0.35), 0 0 0 1px rgba(255, 229, 161, 0.14) inset; }
 
-.birthday-ceremony {
-  padding-bottom: max(1rem, env(safe-area-inset-bottom));
-  background: linear-gradient(180deg, transparent 42%, rgba(23, 2, 12, 0.16));
-}
+.birthday-ceremony { background: linear-gradient(180deg, rgba(23, 2, 12, 0.34), transparent 34%); }
 
 .birthday-countdown { min-height: 5.6rem; text-shadow: 0 3px 16px rgba(20, 0, 10, 0.78); }
-.countdown-number {
+.countdown-ring {
+  position: relative;
   display: inline-grid;
   place-items: center;
-  width: 2.3rem;
-  height: 2.3rem;
-  margin-top: 0.28rem;
-  border: 1px solid rgba(255, 231, 172, 0.72);
+  width: 3.4rem;
+  height: 3.4rem;
+  margin-top: 0.5rem;
   border-radius: 999px;
+  background: rgba(84, 10, 40, 0.62);
+  box-shadow: 0 0 28px rgba(244, 206, 118, 0.35), inset 0 1px rgba(255,255,255,.25);
+}
+.countdown-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.countdown-ring-track { fill: none; stroke: rgba(255, 231, 172, 0.22); stroke-width: 2.4; }
+.countdown-ring-fill { fill: none; stroke: #ffe2a0; stroke-width: 2.4; stroke-linecap: round; }
+.countdown-ring span {
+  position: relative;
   color: #fff4ce;
-  background: rgba(84, 10, 40, 0.72);
-  box-shadow: 0 0 28px rgba(244, 206, 118, 0.35), inset 0 1px rgba(255,255,255,.3);
   font-family: 'Playfair Display', Georgia, serif;
-  font-size: 1.35rem;
+  font-size: 1.5rem;
   font-weight: 700;
 }
 
-.cake-scene {
-  position: relative;
-  width: min(76vw, 360px);
-  height: min(57vw, 260px);
-  min-height: 200px;
-  display: grid;
-  place-items: end center;
-  filter: drop-shadow(0 16px 18px rgba(14, 0, 7, 0.45));
-}
-.cake-glow {
-  position: absolute;
-  bottom: 2%;
-  width: 82%;
-  height: 24%;
-  border-radius: 50%;
-  background: radial-gradient(ellipse, rgba(255, 203, 109, 0.5), rgba(255, 94, 145, 0.14) 47%, transparent 70%);
-}
-.cake-photo-frame {
-  position: relative;
-  z-index: 2;
-  width: 86%;
-  height: 78%;
-  overflow: hidden;
-  border: 5px solid rgba(255, 247, 221, 0.9);
-  border-radius: 46% 46% 12% 12% / 16% 16% 10% 10%;
-  background: linear-gradient(180deg, #d9f0e7, #76b6a9);
-  box-shadow: 0 12px 0 rgba(91, 22, 47, 0.26), 0 22px 38px rgba(14, 0, 7, 0.34), inset 0 6px rgba(255,255,255,.45);
-}
-.cake-photo-frame img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block; background: #fffdf8; }
-.cake-fallback { position: relative; width: 100%; height: 100%; overflow: hidden; background: linear-gradient(180deg, #d8f0e8 0 30%, #f8fcf6 30% 100%); }
-.cake-layer, .cake-frosting, .cake-plate, .cake-cherry { position: absolute; left: 50%; transform: translateX(-50%); }
-.cake-layer { width: 82%; border-radius: 45% 45% 12% 12% / 18% 18% 10% 10%; background: repeating-linear-gradient(90deg, #f7fbf7 0 18px, #c7e5d9 18px 34px); box-shadow: inset 0 -8px 0 rgba(108, 169, 154, 0.2); }
-.cake-layer--one { height: 48%; bottom: 8%; }
-.cake-layer--two { width: 61%; height: 34%; bottom: 43%; }
-.cake-frosting { width: 65%; height: 18%; bottom: 70%; border-radius: 50%; background: #b5ded0; box-shadow: 0 9px 0 #b5ded0; }
-.cake-plate { bottom: 1%; width: 92%; height: 9%; border-radius: 50%; background: #f7e0b2; box-shadow: 0 3px 0 #d1a45e; }
-.cake-cherry { z-index: 2; bottom: 74%; color: #e66471; font-size: 1.4rem; text-shadow: 0 2px #aa1d43; }
-
-.candle { position: absolute; z-index: 5; left: 50%; bottom: 68%; width: 18px; height: 76px; transform: translateX(-50%); perspective: 120px; }
-.candle-body { position: absolute; inset: 27px 2px 0; display: block; border-radius: 8px 8px 4px 4px; background: repeating-linear-gradient(90deg, #f6a13d 0 4px, #fff2b7 4px 7px); box-shadow: inset -3px 0 rgba(143, 47, 28, .16), 0 3px 4px rgba(37, 3, 13, .28); transform: rotateX(6deg); }
-.candle-wick { position: absolute; z-index: 2; left: 8px; top: 20px; width: 2px; height: 11px; background: #2f1312; }
-.candle-flame { position: absolute; z-index: 3; left: 50%; top: 0; width: 19px; height: 29px; transform: translateX(-50%) rotate(5deg); transform-origin: 50% 100%; border-radius: 55% 45% 55% 45%; background: radial-gradient(ellipse at 50% 72%, #fff8b0 0 18%, #ffd25c 28%, #ff8c32 58%, #ef4e28 78%, transparent 80%); filter: drop-shadow(0 0 10px rgba(255, 184, 55, 0.9)); animation: flameFlicker .75s ease-in-out infinite alternate; }
-.candle-flame.is-blown { animation: flameOut 1.2s cubic-bezier(.22,.8,.2,1) forwards; }
-@keyframes flameFlicker { from { transform: translateX(-50%) rotate(-5deg) scale(0.92, 1.05); } to { transform: translateX(-50%) rotate(8deg) scale(1.07, .92); } }
-@keyframes flameOut { 0% { opacity: 1; transform: translateX(-50%) rotate(4deg) scale(1); } 38% { opacity: .82; transform: translateX(10px) rotate(34deg) scale(1.2, .55); } 100% { opacity: 0; transform: translateX(25px) rotate(58deg) scale(0.05); } }
-
-.cake-knife { position: absolute; z-index: 8; top: 19%; right: -9%; width: 54%; height: 18px; opacity: 0; transform: rotate(-28deg) translate(54px, -50px); transform-origin: 0 50%; }
-.cake-knife span { display: block; width: 82%; height: 100%; border-radius: 0 999px 999px 0; background: linear-gradient(180deg, #fff, #b8c1ca 54%, #687382); box-shadow: 0 2px 5px rgba(0,0,0,.35); }
-.cake-knife::before { content: ''; position: absolute; left: -17%; top: -5px; width: 21%; height: 28px; border-radius: 7px; background: linear-gradient(90deg, #5d241d, #c56a3f); box-shadow: inset 2px 0 rgba(255, 226, 153, .35); }
-.cake-slice { position: absolute; z-index: 4; right: 17%; bottom: 17%; width: 19%; height: 28%; opacity: 0; border-radius: 12% 40% 18% 20%; background: linear-gradient(155deg, #dcf0e6 0 26%, #fff 26% 56%, #b9ded1 56%); box-shadow: 5px 8px 10px rgba(29,1,12,.3); transform: translate(0,0) rotate(0); }
-.cake-scene.is-cutting .cake-knife { animation: sliceCake 2.3s cubic-bezier(.35,.02,.2,1) forwards; }
-.cake-scene.is-cutting .cake-slice { animation: serveSlice 1.55s .94s cubic-bezier(.2,.75,.35,1) forwards; }
-@keyframes sliceCake { 0% { opacity: 0; transform: rotate(-28deg) translate(54px, -50px); } 13% { opacity: 1; } 68% { opacity: 1; transform: rotate(-28deg) translate(-43px, 46px); } 100% { opacity: 0; transform: rotate(-28deg) translate(-65px, 64px); } }
-@keyframes serveSlice { from { opacity: 0; transform: translate(0,0) rotate(0); } to { opacity: 1; transform: translate(62px, 18px) rotate(9deg); } }
-.birthday-cake-caption { z-index: 6; display: flex; align-items: center; gap: .4rem; margin: .2rem 0 0; color: #ffe4aa; font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; text-shadow: 0 2px 8px rgba(20,0,10,.8); }
-
-/* Three seconds: sparkles travel upward from the cake while the familiar greeting appears. */
-.birthday-wish { animation: birthdayWishExit 3.1s ease-out both; }
-.birthday-wish-glow { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 75%, rgba(255, 205, 104, .45), transparent 43%); }
-.wish-sparkle { position: absolute; left: 50%; bottom: 17%; width: var(--wish-size); height: var(--wish-size); border-radius: 50%; background: #fff0a2; box-shadow: 0 0 12px #ffd274; animation: wishSparkleFlight 2.8s cubic-bezier(.12,.68,.28,1) var(--wish-delay) both; }
-@keyframes wishSparkleFlight { from { opacity: 0; transform: translate3d(0, 0, 0) scale(0); } 12% { opacity: 1; } to { opacity: 0; transform: translate3d(var(--wish-x), calc(var(--wish-height) * -1), 0) scale(.45); } }
-.birthday-wish-message { position: absolute; left: 50%; top: 23%; width: min(92vw, 600px); transform: translateX(-50%); text-align: center; text-shadow: 0 3px 18px rgba(26, 1, 12, .9); animation: wishMessage 3.1s ease-out both; }
+/* The greeting rises over the 3D celebration and fades before the second door. */
+.birthday-wish { transition: opacity .7s ease; }
+.birthday-wish.is-leaving { opacity: 0; }
+.birthday-wish-message { position: absolute; left: 50%; top: 14%; width: min(92vw, 600px); transform: translateX(-50%); text-align: center; text-shadow: 0 3px 18px rgba(26, 1, 12, .9); animation: wishMessage 1.1s ease-out both; }
 .birthday-wish-message span { display: block; color: #ffe2a0; font-size: .72rem; font-weight: 700; letter-spacing: .28em; text-transform: uppercase; }
 .birthday-wish-message h2, .birthday-wish-message strong { display: block; margin: 0; font-family: 'Playfair Display', Georgia, serif; background: linear-gradient(100deg, #fff6d8, #f4c95c 48%, #fff2c6); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .birthday-wish-message h2 { margin-top: .5rem; font-size: clamp(1.8rem, 8vw, 3.2rem); font-style: italic; line-height: .95; }
 .birthday-wish-message strong { margin-top: .25rem; font-size: clamp(3.3rem, 17vw, 6.3rem); line-height: .9; }
-@keyframes wishMessage { 0% { opacity: 0; transform: translate(-50%, 18px) scale(.94); } 14%, 75% { opacity: 1; transform: translate(-50%, 0) scale(1); } 100% { opacity: 0; transform: translate(-50%, -14px) scale(1.02); } }
-@keyframes birthdayWishExit { to { visibility: hidden; } }
+@keyframes wishMessage { 0% { opacity: 0; transform: translate(-50%, 18px) scale(.94); } 100% { opacity: 1; transform: translate(-50%, 0) scale(1); } }
 
-@media (max-width: 640px) { .wish-sparkle--extra { display: none; } .cake-scene { width: min(86vw, 340px); height: 53vw; } .birthday-ceremony { padding-bottom: max(.6rem, env(safe-area-inset-bottom)); } }
-@media (prefers-reduced-motion: reduce) { .candle-flame, .candle-flame.is-blown, .cake-scene.is-cutting .cake-knife, .cake-scene.is-cutting .cake-slice, .birthday-wish, .wish-sparkle, .birthday-wish-message { animation-duration: .01ms; animation-iteration-count: 1; } }
+@media (prefers-reduced-motion: reduce) { .birthday-wish, .birthday-wish-message { animation-duration: .01ms; animation-iteration-count: 1; } }
 

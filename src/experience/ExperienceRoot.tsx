@@ -15,6 +15,7 @@ import { ProposalNotification } from '../components/ProposalNotification';
 import { ExperienceHUD } from '../components/ExperienceHUD';
 import { BirthdayCelebration } from '../components/BirthdayCelebration';
 import { BirthdayCeremony } from '../components/BirthdayCeremony';
+import type { CeremonyPhase } from '../components/BirthdayCeremony';
 import { EntryDoorNotification } from '../components/EntryDoorNotification';
 import { LoveAtmosphere } from '../components/LoveAtmosphere';
 import { Sparkles } from 'lucide-react';
@@ -34,14 +35,18 @@ export const ExperienceRoot: React.FC = () => {
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [proposalDoorOpened, setProposalDoorOpened] = useState(false);
   const [entryDoorOpened, setEntryDoorOpened] = useState(false);
-  const [birthdayPhase, setBirthdayPhase] = useState<'countdown' | 'wish' | 'cutting' | null>(null);
-  const [celebration, setCelebration] = useState<'idle' | 'playing' | 'done'>('idle');
+  const [birthdayPhase, setBirthdayPhase] = useState<CeremonyPhase | null>(null);
+  const [entryReady, setEntryReady] = useState(false);
+  const stateRef = useRef<ExperienceState>('BOOT');
+  const doorTapRef = useRef<() => void>(() => {});
+  const giftDoorBusy = useRef(false);
+  const [celebration, setCelebration] = useState<'idle' | 'playing' | 'leaving' | 'done'>('idle');
   const proposalDoorOpenedRef = useRef(false);
   const entryDoorOpenedRef = useRef(false);
   const proposalRun = useRef(0);
   const birthdayRun = useRef(0);
   const answerLock = useRef(false);
-  const [curtain, setCurtain] = useState(false);
+  const [curtain, setCurtain] = useState(true); // the story opens from black
 
   // Initialize 3D Scene
   useEffect(() => {
@@ -52,7 +57,7 @@ export const ExperienceRoot: React.FC = () => {
       onGiftClick: (giftId: string) => {
         handleSelectGift(giftId);
       },
-      onDoorClick: () => {},
+      onDoorClick: () => doorTapRef.current(),
     });
 
     sceneRef.current = scene;
@@ -60,6 +65,7 @@ export const ExperienceRoot: React.FC = () => {
 
     // The story now begins at the front door, not at the gift box.
     let cancelled = false;
+    let noticeTimer = 0;
 
     const minDelay = new Promise<void>((resolve) =>
       window.setTimeout(resolve, 500)
@@ -71,12 +77,16 @@ export const ExperienceRoot: React.FC = () => {
     ]).then(() => {
       if (cancelled) return;
 
+      stateRef.current = 'ENTRY_DOOR';
       setCurrentState('ENTRY_DOOR');
       scene.setState('ENTRY_DOOR');
+      setCurtain(false); // the door fades in out of the dark, alone
+      noticeTimer = window.setTimeout(() => setEntryReady(true), 1900); // then the message arrives
     });
 
     return () => {
       cancelled = true;
+      window.clearTimeout(noticeTimer);
       proposalRun.current++; // cancels any running proposal sequence
       scene.destroy();
     };
@@ -84,6 +94,7 @@ export const ExperienceRoot: React.FC = () => {
 
   // Sync state with 3D scene
   const transitionTo = useCallback((nextState: ExperienceState) => {
+    stateRef.current = nextState;
     setCurrentState(nextState);
     if (sceneRef.current) {
       sceneRef.current.setState(nextState);
@@ -167,24 +178,35 @@ export const ExperienceRoot: React.FC = () => {
 
   }, [transitionTo]);
 
-  const handleCountdownComplete = useCallback(() => {
+  const handleCountdownComplete = useCallback(async () => {
     const id = ++birthdayRun.current;
+    const alive = () => birthdayRun.current === id;
+    const scene = sceneRef.current;
+    if (!scene) return;
+
+    // 1. the candle is blown out
     setBirthdayPhase('wish');
     transitionTo('BIRTHDAY_WISH');
+    await scene.blowOutBirthdayCandle(); if (!alive()) return;
+    await wait(300); if (!alive()) return;
+
+    // 2. the knife cuts the cake
+    setBirthdayPhase('cutting');
+    transitionTo('CAKE_CUTTING');
+    await scene.cutBirthdayCake(); if (!alive()) return;
+
+    // 3. celebration
+    setBirthdayPhase('celebrate');
+    transitionTo('BIRTHDAY_CELEBRATION');
     setCelebration('playing');
+    await scene.celebrateBirthday(); if (!alive()) return;
+    setCelebration('leaving');
+    setBirthdayPhase(null);
+    window.setTimeout(() => { if (birthdayRun.current === id) setCelebration('done'); }, 750);
 
-    window.setTimeout(() => {
-      if (birthdayRun.current !== id) return;
-      setCelebration('done');
-      setBirthdayPhase('cutting');
-      transitionTo('CAKE_CUTTING');
-
-      window.setTimeout(() => {
-        if (birthdayRun.current !== id) return;
-        setBirthdayPhase(null);
-        transitionTo('GIFT_DOOR_READY');
-      }, 3400);
-    }, 3100);
+    // 4. a second door rises, then the message to open it
+    await scene.presentBirthdayDoor(); if (!alive()) return;
+    transitionTo('GIFT_DOOR_READY');
   }, [transitionTo]);
 
   const handleEntryDoor = useCallback(async () => {
@@ -198,17 +220,29 @@ export const ExperienceRoot: React.FC = () => {
     sceneRef.current?.enterBirthdayRoom();
     setBirthdayPhase('countdown');
     transitionTo('BIRTHDAY_COUNTDOWN');
+    void sceneRef.current?.startBirthdayCountdown(8);
     setCurtain(false);
   }, [transitionTo]);
 
   const handleGiftDoor = useCallback(async () => {
+    if (giftDoorBusy.current) return;
+    giftDoorBusy.current = true;
     transitionTo('GIFT_TRANSITION');
+    await sceneRef.current?.openBirthdayDoor();
     setCurtain(true);
     await wait(620);
     sceneRef.current?.leaveBirthdayRoom();
     transitionTo('GIFT_READY');
     setCurtain(false);
   }, [transitionTo]);
+
+  // A tap on a 3D door does the same as its button.
+  useEffect(() => {
+    doorTapRef.current = () => {
+      if (stateRef.current === 'ENTRY_DOOR' && entryReady) void handleEntryDoor();
+      else if (stateRef.current === 'GIFT_DOOR_READY') void handleGiftDoor();
+    };
+  }, [entryReady, handleEntryDoor, handleGiftDoor]);
 
   // Teddy character decided sequence
   const handleTeddyDecided = useCallback(() => {
@@ -339,10 +373,12 @@ export const ExperienceRoot: React.FC = () => {
         onToggleMusic={handleToggleMusic}
       />
 
-      {celebration === 'playing' && <BirthdayCelebration recipientName={config.recipientName} />}
+      {(celebration === 'playing' || celebration === 'leaving') && (
+        <BirthdayCelebration recipientName={config.recipientName} leaving={celebration === 'leaving'} />
+      )}
 
       {/* The opening invitation remains until she opens the front door. */}
-      {currentState === 'ENTRY_DOOR' && (
+      {currentState === 'ENTRY_DOOR' && entryReady && (
         <>
           <EntryDoorNotification senderName={`${config.creatorName} ❤️`} message="Tap the door to open it, baby." />
           <FinalDoorModal
@@ -350,6 +386,7 @@ export const ExperienceRoot: React.FC = () => {
             onOpenDoor={handleEntryDoor}
             eyebrow="A birthday surprise is inside"
             title="Open the door"
+            burst={false}
           />
         </>
       )}
@@ -366,6 +403,7 @@ export const ExperienceRoot: React.FC = () => {
             onOpenDoor={handleGiftDoor}
             eyebrow="One more little surprise"
             title="Go to the gift room"
+            burst={false}
           />
         </>
       )}

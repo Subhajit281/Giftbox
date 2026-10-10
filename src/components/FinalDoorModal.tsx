@@ -8,6 +8,8 @@ interface FinalDoorModalProps {
   onOpenDoor: () => void;
   eyebrow?: string;
   title?: string;
+  /** Fire the 2D confetti burst on tap (kept for the final door only). */
+  burst?: boolean;
 }
 
 export const FinalDoorModal: React.FC<FinalDoorModalProps> = ({
@@ -15,6 +17,7 @@ export const FinalDoorModal: React.FC<FinalDoorModalProps> = ({
   onOpenDoor,
   eyebrow = 'Someone is outside...',
   title = 'Tap to Open',
+  burst = true,
 }) => {
   const [opening, setOpening] = useState(false);
 
@@ -25,7 +28,7 @@ export const FinalDoorModal: React.FC<FinalDoorModalProps> = ({
     setOpening(true);
     soundManager.playDoorOpen();
     onOpenDoor();
-    confetti({
+    if (burst) confetti({
       particleCount: 90,
       spread: 80,
       origin: { y: 0.5 },

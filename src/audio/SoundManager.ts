@@ -454,6 +454,126 @@ class ProceduralSoundEngine {
   }
 
   // Background Ambient Romantic Music (Procedural Arpeggiator)
+  // --- Birthday room ---
+
+  /** Short burst of filtered noise; the building block for blow / slice / pop / bang sounds. */
+  private noiseBurst(
+    duration: number,
+    type: BiquadFilterType,
+    f0: number,
+    f1: number,
+    q: number,
+    peak: number,
+    attack: number,
+    delay = 0,
+  ) {
+    if (!this.ctx || !this.masterGain) return;
+    const t = this.ctx.currentTime + delay;
+    const size = Math.max(1, Math.floor(this.ctx.sampleRate * duration));
+    const buffer = this.ctx.createBuffer(1, size, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < size; i++) data[i] = Math.random() * 2 - 1;
+
+    const src = this.ctx.createBufferSource();
+    src.buffer = buffer;
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = type;
+    filter.frequency.setValueAtTime(f0, t);
+    filter.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + duration);
+    filter.Q.value = q;
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(peak, t + attack);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.masterGain);
+    src.start(t);
+    src.stop(t + duration);
+  }
+
+  /** A soft breath of air that blows the candle out. */
+  public playBlow() {
+    this.initContext();
+    if (this.isMuted || !this.ctx || !this.masterGain) return;
+    this.noiseBurst(1.1, 'bandpass', 500, 1500, 0.8, 0.5, 0.25);
+    this.noiseBurst(0.7, 'highpass', 1800, 900, 0.5, 0.1, 0.2, 0.1);
+  }
+
+  /** Blade pressing through sponge: a quick sheared rush with a low thump at the board. */
+  public playKnifeSlice() {
+    this.initContext();
+    if (this.isMuted || !this.ctx || !this.masterGain) return;
+    this.noiseBurst(0.55, 'bandpass', 3200, 900, 1.4, 0.2, 0.05);
+    const t = this.ctx.currentTime + 0.42;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(130, t);
+    osc.frequency.exponentialRampToValueAtTime(55, t + 0.14);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(0.28, t + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(t);
+    osc.stop(t + 0.2);
+  }
+
+  /** Party-popper: sharp pop, then a falling shimmer of paper. */
+  public playPartyPop() {
+    this.initContext();
+    if (this.isMuted || !this.ctx || !this.masterGain) return;
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(420, t);
+    osc.frequency.exponentialRampToValueAtTime(70, t + 0.09);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(0.45, t + 0.006);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(t);
+    osc.stop(t + 0.18);
+    this.noiseBurst(0.12, 'highpass', 2600, 1800, 0.7, 0.55, 0.004);
+    this.noiseBurst(1.6, 'highpass', 5200, 3200, 0.6, 0.09, 0.05, 0.08);
+  }
+
+  /** Distant firework: whistle up, crack, crackle. */
+  public playFireworkBang(delay = 0) {
+    this.initContext();
+    if (this.isMuted || !this.ctx || !this.masterGain) return;
+    const t = this.ctx.currentTime + delay;
+    const whistle = this.ctx.createOscillator();
+    const wg = this.ctx.createGain();
+    whistle.type = 'sine';
+    whistle.frequency.setValueAtTime(600, t);
+    whistle.frequency.exponentialRampToValueAtTime(1900, t + 0.5);
+    wg.gain.setValueAtTime(0.0001, t);
+    wg.gain.linearRampToValueAtTime(0.05, t + 0.15);
+    wg.gain.exponentialRampToValueAtTime(0.0001, t + 0.52);
+    whistle.connect(wg);
+    wg.connect(this.masterGain);
+    whistle.start(t);
+    whistle.stop(t + 0.55);
+    this.noiseBurst(0.5, 'lowpass', 1400, 120, 0.6, 0.55, 0.004, delay + 0.5);
+    this.noiseBurst(0.9, 'highpass', 4800, 3000, 0.5, 0.1, 0.1, delay + 0.56);
+  }
+
+  /** The first bars of a happy-birthday phrase on bright celesta bells. */
+  public playBirthdayChime() {
+    this.initContext();
+    if (this.isMuted || !this.ctx) return;
+    // G G A G C B | G G A G D C  (C major, bell register)
+    const notes: Array<[number, number]> = [
+      [784, 0], [784, 0.28], [880, 0.56], [784, 1.1], [1047, 1.66], [988, 2.34],
+      [784, 3.2], [784, 3.48], [880, 3.76], [784, 4.3], [1175, 4.86], [1047, 5.54],
+    ];
+    notes.forEach(([freq, at]) => window.setTimeout(() => this.playMusicBoxNote(freq, 0.9), at * 1000));
+  }
+
   public startBackgroundMusic() {
     if (this.bgmPlaying) return;
     this.initContext();

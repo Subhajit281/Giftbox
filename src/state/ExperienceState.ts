@@ -8,6 +8,7 @@ export type ExperienceState =
   | 'BIRTHDAY_COUNTDOWN'
   | 'BIRTHDAY_WISH'
   | 'CAKE_CUTTING'
+  | 'BIRTHDAY_CELEBRATION'
   | 'GIFT_DOOR_READY'
   | 'GIFT_TRANSITION'
   | 'GIFT_READY'
