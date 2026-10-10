@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, ShoppingBag, Sparkles, Heart, Rotate3D } from 'lucide-react';
+import { Volume2, VolumeX, ShoppingBag, Sparkles, Heart, Rotate3D, Settings } from 'lucide-react';
 import type { ExperienceState } from '../state/ExperienceState';
 import type { GiftItem } from '../content/giftData';
 
@@ -8,6 +8,7 @@ interface ExperienceHUDProps {
   gifts: GiftItem[];
   isAudioMuted: boolean;
   onToggleMute: () => void;
+  onOpenSettings: () => void;
 }
 
 export const ExperienceHUD: React.FC<ExperienceHUDProps> = ({
@@ -15,6 +16,7 @@ export const ExperienceHUD: React.FC<ExperienceHUDProps> = ({
   gifts,
   isAudioMuted,
   onToggleMute,
+  onOpenSettings,
 }) => {
   const collectedCount = gifts.filter((g) => g.isCollected).length;
   const totalCount = gifts.length;
@@ -27,6 +29,14 @@ export const ExperienceHUD: React.FC<ExperienceHUDProps> = ({
         <div className="flex items-center justify-between w-full">
           {/* Audio Controls */}
           <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto">
+            <button
+              onClick={onOpenSettings}
+              aria-label="Personalize your messages"
+              title="Personalize your messages"
+              className="p-2 sm:p-2.5 rounded-full glass-pill hover:bg-rose-50 text-[#3b0a1a] transition cursor-pointer shadow-md active:scale-95 border border-[#d4af37]/40"
+            >
+              <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#c59b27]" />
+            </button>
             <button
               onClick={onToggleMute}
               aria-label="Toggle SFX Mute"

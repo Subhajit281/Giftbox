@@ -96,6 +96,40 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             />
           </div>
 
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-[#8a1c35] font-bold mb-1">
+              Opening Door Notification
+            </label>
+            <p className="text-xs text-stone-500 mb-2 italic">
+              This heartfelt note appears with your name and profile avatar before the first door.
+            </p>
+            <textarea
+              rows={2}
+              maxLength={220}
+              value={formData.entryNotificationMessage}
+              onChange={(e) => handleChange('entryNotificationMessage', e.target.value)}
+              placeholder="Write the message you want her to see..."
+              className="w-full px-3 py-2.5 rounded-xl bg-stone-50 border border-[#d4af37]/50 text-[#2e0b19] text-sm focus:bg-white focus:outline-none focus:border-[#c59b27] font-serif-luxury leading-relaxed"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-[#8a1c35] font-bold mb-1">
+              Birthday Room Door Notification
+            </label>
+            <p className="text-xs text-stone-500 mb-2 italic">
+              A second personal note appears when it’s time to enter the next room.
+            </p>
+            <textarea
+              rows={2}
+              maxLength={220}
+              value={formData.giftDoorNotificationMessage}
+              onChange={(e) => handleChange('giftDoorNotificationMessage', e.target.value)}
+              placeholder="Add a little message for this next moment..."
+              className="w-full px-3 py-2.5 rounded-xl bg-stone-50 border border-[#d4af37]/50 text-[#2e0b19] text-sm focus:bg-white focus:outline-none focus:border-[#c59b27] font-serif-luxury leading-relaxed"
+            />
+          </div>
+
           {/* Unlock Name */}
           <div>
             <label className="block text-xs uppercase tracking-wider text-[#8a1c35] font-bold mb-1">

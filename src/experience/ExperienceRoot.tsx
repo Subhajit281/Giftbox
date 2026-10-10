@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { GiftBoxScene } from './GiftBoxScene';
-import { loadSavedConfig} from '../state/ExperienceState';
+import { loadSavedConfig, saveConfig } from '../state/ExperienceState';
 import type { ExperienceState } from '../state/ExperienceState';
 import { INITIAL_GIFTS } from '../content/giftData';
 import type { GiftItem, ExperienceConfig } from '../content/giftData';
@@ -17,6 +17,7 @@ import { BirthdayCelebration } from '../components/BirthdayCelebration';
 import { BIRTHDAY_COUNTDOWN_SECONDS, BirthdayCeremony } from '../components/BirthdayCeremony';
 import type { CeremonyPhase } from '../components/BirthdayCeremony';
 import { EntryDoorNotification } from '../components/EntryDoorNotification';
+import { SettingsModal } from '../components/SettingsModal';
 import { LoveAtmosphere } from '../components/LoveAtmosphere';
 import { Sparkles } from 'lucide-react';
 
@@ -32,7 +33,8 @@ export const ExperienceRoot: React.FC = () => {
   const [currentState, setCurrentState] = useState<ExperienceState>('BOOT');
   const [gifts, setGifts] = useState<GiftItem[]>(INITIAL_GIFTS);
   const [selectedGiftId, setSelectedGiftId] = useState<string | null>(null);
-  const [config] = useState<ExperienceConfig>(loadSavedConfig());
+  const [config, setConfig] = useState<ExperienceConfig>(loadSavedConfig());
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [proposalDoorOpened, setProposalDoorOpened] = useState(false);
   const [entryDoorOpened, setEntryDoorOpened] = useState(false);
@@ -369,7 +371,18 @@ export const ExperienceRoot: React.FC = () => {
         gifts={gifts}
         isAudioMuted={isAudioMuted}
         onToggleMute={handleToggleMute}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
+      {settingsOpen && (
+        <SettingsModal
+          config={config}
+          onSave={(nextConfig) => {
+            setConfig(nextConfig);
+            saveConfig(nextConfig);
+          }}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
 
       {(celebration === 'playing' || celebration === 'leaving') && (
         <BirthdayCelebration recipientName={config.recipientName} leaving={celebration === 'leaving'} />
@@ -378,7 +391,7 @@ export const ExperienceRoot: React.FC = () => {
       {/* The opening invitation remains until she opens the front door. */}
       {currentState === 'ENTRY_DOOR' && entryReady && (
         <>
-          <EntryDoorNotification senderName={`${config.creatorName} ❤️`} message="I made a little birthday world just for you. Come in, my love." />
+          <EntryDoorNotification senderName={config.creatorName} message={config.entryNotificationMessage} />
           <FinalDoorModal
             doorOpened={entryDoorOpened}
             onOpenDoor={handleEntryDoor}
@@ -395,7 +408,7 @@ export const ExperienceRoot: React.FC = () => {
 
       {currentState === 'GIFT_DOOR_READY' && (
         <>
-          <EntryDoorNotification senderName={`${config.creatorName} ❤️`} message="One more little surprise is waiting for you, sweetheart." />
+          <EntryDoorNotification senderName={config.creatorName} message={config.giftDoorNotificationMessage} />
           <FinalDoorModal
             doorOpened={false}
             onOpenDoor={handleGiftDoor}
@@ -450,7 +463,7 @@ export const ExperienceRoot: React.FC = () => {
       {/* In-World Fictional Push Notification */}
       {currentState === 'NOTIFICATION' && (
         <FakeNotification
-          senderName={`${config.creatorName} ❤️`}
+          senderName={config.creatorName}
           onDismiss={handleDismissNotification}
         />
       )}

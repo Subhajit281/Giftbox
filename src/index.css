@@ -679,7 +679,7 @@
   box-shadow: 0 14px 34px rgba(22, 4, 13, 0.2), inset 0 1px rgba(255, 255, 255, 0.9);
 }
 .door-invitation-anchor {
-  top: max(3.5rem, calc(env(safe-area-inset-top) + 0.75rem));
+  top: max(6rem, calc(env(safe-area-inset-top) + 5rem));
 }
 @keyframes wishMessage { 0% { opacity: 0; transform: translate(-50%, 18px) scale(.94); } 100% { opacity: 1; transform: translate(-50%, 0) scale(1); } }
 

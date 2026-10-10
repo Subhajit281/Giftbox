@@ -1314,8 +1314,8 @@ export class GiftBoxScene {
       case 'ENTRY_DOOR_OPENING':
         this.doorGroup.visible = true;
         this.orbitLocked = true; // a still, straight-on view of the door: no camera rotation at all
-        this.cameraTargetPos.set(0, 0.82, isMobile ? -0.5 : 2.4);
-        this.cameraLookAt.set(0, 0.82, -4.5);
+        this.cameraTargetPos.set(0, isMobile ? 1.18 : 0.82, isMobile ? -0.5 : 2.4);
+        this.cameraLookAt.set(0, isMobile ? 1.18 : 0.82, -4.5);
         if (prev === 'BOOT') this.snapCameraNext = true;
         if (newState === 'ENTRY_DOOR_OPENING') this.isDoorOpening = true;
         break;
@@ -1382,8 +1382,8 @@ export class GiftBoxScene {
       case 'FINAL_HANDOFF':
         this.orbitLocked = true; // straight-on view only, so the other side of the door can never be seen
         this.doorGroup.visible = true;
-        this.cameraTargetPos.set(0, 0.82, isMobile ? -0.5 : 2.4);
-        this.cameraLookAt.set(0, 0.82, -4.5);
+        this.cameraTargetPos.set(0, isMobile ? 1.18 : 0.82, isMobile ? -0.5 : 2.4);
+        this.cameraLookAt.set(0, isMobile ? 1.18 : 0.82, -4.5);
         if (newState === 'DOOR_OPENING' || newState === 'FINAL_HANDOFF') {
           this.isDoorOpening = true;
         }

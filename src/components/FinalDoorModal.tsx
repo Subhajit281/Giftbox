@@ -49,6 +49,7 @@ export const FinalDoorModal: React.FC<FinalDoorModalProps> = ({
               {eyebrow}
             </span>
             <span className="font-serif-luxury text-sm sm:text-base font-semibold text-[#2e0b19]">{title}</span>
+            <span className="block text-[9px] uppercase tracking-[0.12em] text-[#8a1c35] font-bold">Tap the door</span>
           </div>
           <Sparkles className="w-3.5 h-3.5 shrink-0 text-[#b28b52]" />
         </button>
