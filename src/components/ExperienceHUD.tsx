@@ -60,7 +60,7 @@ export const ExperienceHUD: React.FC<ExperienceHUDProps> = ({
 
         {/* Narrative Instruction Banner: Positioned prominently at TOP of page */}
         {(currentState === 'BOX_OPEN' || currentState === 'GIFT_SELECTION') && (
-          <div className="text-center pointer-events-auto animate-fade-in mt-0.5 -sm:mt-2">
+          <div className="text-center pointer-events-auto animate-fade-in mt-0.5 sm:-mt-2">
             <div className="inline-flex items-center gap-1.5 sm:gap-2 glass-pill py-1.5 sm:py-2 px-1 sm:px-2 md:px-3 rounded-full border border-[#f2d48b]/70 shadow-[0_10px_30px_rgba(28,4,15,0.24)] bg-[#fffdf9]/90 backdrop-blur-md">
               <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#c59b27] shrink-0 animate-pulse" />
               <p className="font-serif-luxury text-xs sm:text-sm md:text-base font-semibold text-[#3b0a1a] italic tracking-wide">

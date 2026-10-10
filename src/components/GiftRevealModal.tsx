@@ -131,8 +131,8 @@ export const GiftRevealModal: React.FC<GiftRevealModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-6 bg-stone-900/35 backdrop-blur-md overflow-y-auto pointer-events-auto safe-top safe-bottom">
-      <div className="glass-panel max-w-xl w-full rounded-2xl sm:rounded-3xl p-4 sm:p-8 relative border border-[#d4af37]/50 shadow-2xl flex flex-col max-h-[calc(100dvh-1rem)] sm:max-h-[92vh] bg-white/95 text-[#2e0b19]">
+    <div className="mobile-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-6 overflow-y-auto pointer-events-auto">
+      <div className="mobile-modal-content glass-panel max-w-xl w-full rounded-2xl sm:rounded-3xl p-4 sm:p-8 relative border border-[#d4af37]/50 shadow-2xl flex flex-col max-h-[calc(100dvh-1rem)] sm:max-h-[92vh] bg-white/95 text-[#2e0b19]">
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -418,7 +418,7 @@ export const GiftRevealModal: React.FC<GiftRevealModalProps> = ({
                         soundManager.playPhotoSlide();
                         setIsPhotoFlipped(!isPhotoFlipped);
                       }}
-                      className="w-72 sm:w-80 p-3 pb-6 bg-white rounded-xl shadow-xl border border-stone-200 cursor-pointer transform hover:rotate-1 transition-all duration-300"
+                      className="w-[min(18rem,100%)] sm:w-80 max-w-full p-3 pb-6 bg-white rounded-xl shadow-xl border border-stone-200 cursor-pointer transform hover:rotate-1 transition-all duration-300"
                     >
                       {!isPhotoFlipped ? (
                         <div>

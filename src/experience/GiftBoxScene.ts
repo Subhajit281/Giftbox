@@ -168,7 +168,7 @@ export class GiftBoxScene {
   private clock = new THREE.Timer();
   private isMobile = false;
   private pixelRatio = 1;
-  private readonly minPixelRatio = 1;
+  private readonly minPixelRatio = 0.75;
   private warming = false;
   private disposed = false;
   private lastFrameTime = 0;
@@ -178,6 +178,7 @@ export class GiftBoxScene {
   private lastW = 0;
   private lastH = 0;
   private resizeRaf: number | null = null;
+  private resizeObserver: ResizeObserver | null = null;
   private desiredCamera = new THREE.Vector3();
   // Proposal room
   private roomGroup = new THREE.Group();
@@ -283,6 +284,11 @@ export class GiftBoxScene {
 
     // Event listeners
     window.addEventListener('resize', this.onResize);
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
+    if ('ResizeObserver' in window) {
+      this.resizeObserver = new ResizeObserver(this.onResize);
+      this.resizeObserver.observe(this.container);
+    }
     this.container.addEventListener('pointerdown', this.onPointerDown);
     this.container.addEventListener('pointermove', this.onPointerMove);
     this.container.addEventListener('pointerup', this.onPointerUp);
@@ -1462,7 +1468,19 @@ export class GiftBoxScene {
     if (event.pointerId === this.activePointerId) this.activePointerId = null;
   };
 
-    private onResize = () => {
+  private onVisibilityChange = () => {
+    if (document.hidden) {
+      if (this.animId !== null) cancelAnimationFrame(this.animId);
+      this.animId = null;
+      return;
+    }
+    if (!this.disposed && this.animId === null) {
+      this.lastFrameTime = 0;
+      this.renderLoop();
+    }
+  };
+
+  private onResize = () => {
     if (this.resizeRaf !== null) return;
     this.resizeRaf = requestAnimationFrame(() => {
       this.resizeRaf = null;
@@ -2520,7 +2538,9 @@ export class GiftBoxScene {
     this.disposed = true;
     if (this.animId !== null) cancelAnimationFrame(this.animId);
     if (this.resizeRaf !== null) cancelAnimationFrame(this.resizeRaf);
+    this.resizeObserver?.disconnect();
     window.removeEventListener('resize', this.onResize);
+    document.removeEventListener('visibilitychange', this.onVisibilityChange);
     this.container.removeEventListener('pointerdown', this.onPointerDown);
     this.container.removeEventListener('pointermove', this.onPointerMove);
     this.container.removeEventListener('pointerup', this.onPointerUp);

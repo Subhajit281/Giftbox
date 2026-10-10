@@ -41,9 +41,9 @@ export const LockPromptModal: React.FC<LockPromptModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center p-3 sm:p-4 bg-stone-900/30 backdrop-blur-sm pointer-events-auto animate-fade-in safe-top safe-bottom">
+    <div className="mobile-modal-backdrop fixed inset-0 z-40 flex items-center justify-center p-3 sm:p-4 pointer-events-auto animate-fade-in">
       <div
-        className={`glass-panel max-w-sm w-full p-5 sm:p-8 rounded-3xl text-center relative border border-[#d4af37]/50 shadow-2xl bg-white/95 ${
+        className={`mobile-modal-content glass-panel max-w-sm w-full p-5 sm:p-8 rounded-3xl text-center relative border border-[#d4af37]/50 shadow-2xl bg-white/95 overflow-y-auto ${
           isShaking ? 'animate-lock-shake' : ''
         }`}
       >
