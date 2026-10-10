@@ -3,6 +3,9 @@ import type { GiftItem } from '../content/giftData';
 import type { ExperienceState } from '../state/ExperienceState';
 import { BirthdayStage } from './birthday/BirthdayStage';
 import { GiftRoomFX } from './giftroom/GiftRoomFX';
+import { GiftRoomDecor } from './giftroom/GiftRoomDecor';
+import { DoorBadge } from './decor/DoorBadge';
+import { beamTexture, glowTexture } from './birthday/textures';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
 const ROOM_X = 80; // the proposal room lives far from the gift world, so no hiding/unhiding is needed
@@ -127,6 +130,8 @@ export class GiftBoxScene {
   // Everything belonging to the gift room lives under one group, so each story stage shows only its own world.
   private giftWorld = new THREE.Group();
   private giftFx!: GiftRoomFX;
+  private giftDecor!: GiftRoomDecor;
+  private doorBadge!: DoorBadge;
   private giftEnv: THREE.Texture | null = null;
   private ambLight!: THREE.AmbientLight;
   private snapCameraNext = false;
@@ -181,6 +186,14 @@ export class GiftBoxScene {
   private boy!: Person;
   private girl!: Person;
   private rose!: THREE.Group;
+  // Third room: one spotlight per character, background dims once they are spotted
+  private spotBoy!: THREE.SpotLight;
+  private spotGirl!: THREE.SpotLight;
+  private spotCones: THREE.Mesh[] = [];
+  private spotPools: THREE.Mesh[] = [];
+  private proposalWallMat!: THREE.MeshStandardMaterial;
+  private spotMix = 0;
+  private spotTarget = 0;
   private sparkles!: THREE.Points;
   private sparkleData!: { start: Float32Array; vel: Float32Array; delay: Float32Array };
   private orbitLocked = false;
@@ -251,6 +264,9 @@ export class GiftBoxScene {
     this.createBirthdayRoom();
     this.giftFx = new GiftRoomFX(this.isMobile);
     this.giftWorld.add(this.giftFx.group);
+    this.giftDecor = new GiftRoomDecor(this.isMobile);
+    this.applyGiftRoomReflections(this.giftDecor.group);
+    this.giftWorld.add(this.giftDecor.group);
     this.applyGiftRoomReflections(this.mainBoxGroup);
 
     this.giftWorld.add(this.mainBoxGroup, this.giftsGroup, this.binGroup, this.teddyGroup);
@@ -1042,6 +1058,19 @@ export class GiftBoxScene {
 
     panel.userData = { isDoor: true };
     this.doorHandle.userData = { isDoor: true };
+
+    // "Entering the 20's" medallion on the panel + flower garlands on the frame
+    this.doorBadge = new DoorBadge(1.45);
+    this.doorBadge.badge.position.set(0.95, 0.75, 0.075);
+    this.doorHingedPanel.add(this.doorBadge.badge);
+    const top = DoorBadge.garland(3.1, 0.55, 0, 7);
+    top.position.set(0, 3.32, 0.16);
+    this.doorGroup.add(top);
+    for (const sx of [-1, 1]) {
+      const side = DoorBadge.garland(4.2, 0.5, Math.PI / 2, 11 + sx);
+      side.position.set(sx * 1.3, 1.1, 0.16);
+      this.doorGroup.add(side);
+    }
   }
 
   private createBirthdayRoom() {
@@ -1569,7 +1598,10 @@ export class GiftBoxScene {
       this.camera.lookAt(this.currentLookAt);
     }
 
-    if (this.giftWorld.visible) this.giftFx.update(delta, elapsed);
+    if (this.giftWorld.visible) {
+      this.giftFx.update(delta, elapsed);
+      this.giftDecor.update(delta, elapsed);
+    }
 
     // 2. Dust particles
     if (this.particlePositions) {
@@ -1630,6 +1662,7 @@ export class GiftBoxScene {
     }
 
     // 5. Door
+    if (this.doorGroup.visible) this.doorBadge.update(elapsed);
     if (this.doorGroup.visible && this.isDoorOpening) {
       this.doorOpenProgress = THREE.MathUtils.lerp(this.doorOpenProgress, 1, this.damp(2.45, delta));
       this.doorHingedPanel.rotation.y = this.doorOpenProgress * (Math.PI / 2) * 0.95;
@@ -1640,8 +1673,31 @@ export class GiftBoxScene {
     // A subtle, low-cost pulse makes the proposal room feel candlelit and alive.
     if (this.roomGroup.visible) {
       const pulse = 0.5 + Math.sin(elapsed * 1.7) * 0.5;
-      this.roomKeyLight.intensity = 3.35 + pulse * 0.8;
-      this.roomRimLight.intensity = 2.05 + (1 - pulse) * 0.55;
+      // Spotlight mix: 0 = room fully lit, 1 = background dimmed and both characters in their own follow-spot
+      this.spotMix += (this.spotTarget - this.spotMix) * (1 - Math.exp(-2.2 * delta));
+      const mix = this.spotMix;
+      const dim = 1 - 0.62 * mix;
+      this.roomKeyLight.intensity = (3.35 + pulse * 0.8) * dim;
+      this.roomRimLight.intensity = (2.05 + (1 - pulse) * 0.55) * dim;
+      this.proposalWallMat.emissiveIntensity = 1 - 0.7 * mix;
+      this.ambLight.intensity = THREE.MathUtils.lerp(this.ambLight.intensity, 1.75 * (1 - 0.5 * mix), this.damp(4, delta));
+      const people = [this.boy, this.girl];
+      [this.spotBoy, this.spotGirl].forEach((sp, i) => {
+        const p = people[i].root.position;
+        const wx = ROOM_X + p.x;
+        const lean = people[i].lean.position.y; // kneeling lowers the target a little
+        sp.intensity = 95 * mix;
+        sp.position.set(wx + (i ? 0.5 : -0.5), 7.5, p.z + 1.6);
+        sp.target.position.set(wx, FLOOR_Y + 1.0 + lean * 0.5, p.z);
+        const cone = this.spotCones[i];
+        cone.visible = mix > 0.01;
+        cone.position.set(p.x, 7.5, p.z);
+        (cone.material as THREE.MeshBasicMaterial).opacity = (0.2 + 0.03 * pulse) * mix;
+        const pool = this.spotPools[i];
+        pool.visible = mix > 0.01;
+        pool.position.set(p.x, FLOOR_Y + 0.02, p.z);
+        (pool.material as THREE.MeshBasicMaterial).opacity = (0.55 + 0.1 * pulse) * mix;
+      });
       const heartScale = 3.2 + pulse * 0.075;
       this.proposalHeart.scale.set(heartScale, heartScale, 1);
       this.proposalHalo.rotation.z += delta * 0.12;
@@ -1695,10 +1751,8 @@ export class GiftBoxScene {
     floor.position.y = FLOOR_Y;
     room.add(floor);
 
-    const wall = new THREE.Mesh(
-      new THREE.PlaneGeometry(40, 16),
-      new THREE.MeshStandardMaterial({ color: 0x7a2744, emissive: 0x3a0f22, roughness: 0.9 }),
-    );
+    this.proposalWallMat = new THREE.MeshStandardMaterial({ color: 0x7a2744, emissive: 0x3a0f22, roughness: 0.9 });
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(40, 16), this.proposalWallMat);
     wall.position.set(0, FLOOR_Y + 8, -7);
     room.add(wall);
 
@@ -1779,6 +1833,39 @@ export class GiftBoxScene {
     this.rose.visible = false;
     this.boy.handL.add(this.rose); // near-camera hand
     this.resetPeople();
+
+    // Two follow-spots from above, one per character. Lights live on the scene at intensity 0 until the
+    // couple walks in, so the light count never changes after start-up.
+    const makeSpot = (hex: number) => {
+      const sp = new THREE.SpotLight(hex, 0, 22, 0.3, 0.65, 1.4);
+      sp.position.set(ROOM_X, 7.5, 1.5);
+      sp.target.position.set(ROOM_X, FLOOR_Y + 1, 0);
+      this.scene.add(sp, sp.target);
+      return sp;
+    };
+    this.spotBoy = makeSpot(0xffe2b0);
+    this.spotGirl = makeSpot(0xffd2e4);
+    const beam = beamTexture();
+    const coneH = 7.5 - FLOOR_Y;
+    const coneGeo = new THREE.ConeGeometry(1.25, coneH, 36, 1, true);
+    coneGeo.translate(0, -coneH / 2, 0);
+    [0xffe2b0, 0xffcfe2].forEach((hex) => {
+      const cone = new THREE.Mesh(
+        coneGeo,
+        new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: 0, alphaMap: beam, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }),
+      );
+      cone.visible = false;
+      room.add(cone);
+      this.spotCones.push(cone);
+      const pool = new THREE.Mesh(
+        new THREE.CircleGeometry(1.35, 40),
+        new THREE.MeshBasicMaterial({ map: glowTexture(), color: hex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }),
+      );
+      pool.rotation.x = -Math.PI / 2;
+      pool.visible = false;
+      room.add(pool);
+      this.spotPools.push(pool);
+    });
 
     // Sparkle burst
     const SN = this.isMobile ? 180 : 320;
@@ -2170,6 +2257,8 @@ export class GiftBoxScene {
   /** Call after setState('PROPOSAL_ENTER') while the screen is black. */
   public enterProposalRoom() {
     this.roomGroup.visible = true;
+    this.spotMix = 0;
+    this.spotTarget = 0; // starts well lit; the spots come up as the couple walk in
     this.roomKeyLight.intensity = 22;
     this.roomRimLight.intensity = 16;
     this.resetPeople();
@@ -2180,6 +2269,7 @@ export class GiftBoxScene {
 
   public async playProposalWalkIn() {
     const { boy, girl } = this;
+    this.spotTarget = 1; // from the first step to the last, each of them stays in their own spotlight
     const startX = this.isMobile ? 3.8 : 6.2;
     const stopX = 0.72;
     const dur = 6800;

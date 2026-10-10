@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { soundManager } from '../../audio/SoundManager';
+import { DoorBadge } from '../decor/DoorBadge';
 import { dir, dripDepth, dripTips, makeGanacheBand, makeKissGeometry, makeSector, makeStrawberryGeometry, wrap } from './cakeGeometry';
 import {
   Confetti, DustPuff, Fireworks, LightBeams, RisingBalloons, SparkFountain, Streamers,
@@ -151,6 +152,7 @@ export class BirthdayStage {
 
   // exit door
   private exitDoor = new THREE.Group();
+  private exitBadge!: DoorBadge;
   private exitPanel = new THREE.Group();
   private exitKnob!: THREE.Mesh;
   private exitLight!: THREE.PointLight;
@@ -784,6 +786,19 @@ export class BirthdayStage {
     this.exitPanel.add(this.exitKnob);
     g.add(this.exitPanel);
 
+    // "Entering the 20's" medallion on the panel + flower garlands over the lintel and down the jambs
+    this.exitBadge = new DoorBadge(1.5);
+    this.exitBadge.badge.position.set(W / 2, H * 0.62, 0.1);
+    this.exitPanel.add(this.exitBadge.badge);
+    const garlandTop = DoorBadge.garland(W + 1.1, 0.5, 0, 5);
+    garlandTop.position.set(0, H + 0.2, 0.17);
+    g.add(garlandTop);
+    for (const sx of [-1, 1]) {
+      const side = DoorBadge.garland(H + 0.2, 0.46, Math.PI / 2, 9 + sx);
+      side.position.set(sx * (W / 2 + 0.1), (H + 0.12) / 2, 0.12);
+      g.add(side);
+    }
+
     this.exitLight = new THREE.PointLight(0xffd9a2, 0, 11, 2);
     this.exitLight.position.set(0, 1.7, 1.2);
     g.add(this.exitLight);
@@ -1244,6 +1259,7 @@ export class BirthdayStage {
     this.fountainR.update(dt);
     this.dustPuff.update(dt);
     this.doorSparks.update(dt);
+    if (this.exitDoor.visible) this.exitBadge.update(elapsed);
     this.balloons.update(dt);
     this.beams.update(this.time);
   }
