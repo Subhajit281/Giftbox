@@ -681,6 +681,9 @@
 .door-invitation-anchor {
   top: max(6rem, calc(env(safe-area-inset-top) + 5rem));
 }
+.door-invitation-anchor--large-notification {
+  top: max(9.5rem, calc(env(safe-area-inset-top) + 8rem));
+}
 @keyframes wishMessage { 0% { opacity: 0; transform: translate(-50%, 18px) scale(.94); } 100% { opacity: 1; transform: translate(-50%, 0) scale(1); } }
 
 @media (prefers-reduced-motion: reduce) { .birthday-wish, .birthday-wish-message { animation-duration: .01ms; animation-iteration-count: 1; } }

@@ -108,6 +108,7 @@ export class BirthdayStage {
   private keyBase = 0;
 
   // cake
+  private tableGroup = new THREE.Group();
   private cake = new THREE.Group();
   private restGroup = new THREE.Group();
   private sliceGroup = new THREE.Group();
@@ -176,7 +177,7 @@ export class BirthdayStage {
     this.buildExtras();
     this.buildEffects();
     this.buildExitDoor();
-    this.group.add(this.cake, this.knife);
+    this.group.add(this.tableGroup, this.cake, this.knife);
     this.reset();
   }
 
@@ -218,7 +219,7 @@ export class BirthdayStage {
     top.rotation.x = -Math.PI / 2;
     top.position.y = TABLE_TOP;
     top.receiveShadow = true;
-    this.group.add(top);
+    this.tableGroup.add(top);
 
     // The drape: flares out, falls in soft folds and ends in a scalloped hem.
     const rings = 26;
@@ -253,13 +254,13 @@ export class BirthdayStage {
     geo.computeVertexNormals();
     const drape = new THREE.Mesh(geo, cloth);
     drape.receiveShadow = true;
-    this.group.add(drape);
+    this.tableGroup.add(drape);
 
     // gold piping where the cloth turns over the edge
     const trim = new THREE.Mesh(new THREE.TorusGeometry(TABLE_R - 0.02, 0.011, 8, 96), this.metal(0xd9b25a, 0.3));
     trim.rotation.x = Math.PI / 2;
     trim.position.y = TABLE_TOP + 0.004;
-    this.group.add(trim);
+    this.tableGroup.add(trim);
 
     // cake stand: gold foot and stem, porcelain top
     const prof = [
@@ -270,14 +271,14 @@ export class BirthdayStage {
     stand.position.y = TABLE_TOP;
     stand.castShadow = true;
     stand.receiveShadow = true;
-    this.group.add(stand);
+    this.tableGroup.add(stand);
     const porcelain = new THREE.Mesh(
       new THREE.CylinderGeometry(0.985, 0.985, 0.012, 72),
       new THREE.MeshStandardMaterial({ color: 0xfff7ef, roughness: 0.2, envMap: this.envMap, envMapIntensity: 0.5 }),
     );
     porcelain.position.y = TABLE_TOP + STAND_H - 0.002;
     porcelain.receiveShadow = true;
-    this.group.add(porcelain);
+    this.tableGroup.add(porcelain);
 
     // dessert plate for the first slice
     const plateMat = new THREE.MeshStandardMaterial({ color: 0xfffaf4, roughness: 0.16, envMap: this.envMap, envMapIntensity: 0.6 });
@@ -288,11 +289,11 @@ export class BirthdayStage {
     plate.position.set(PLATE_X, TABLE_TOP, PLATE_Z);
     plate.receiveShadow = true;
     plate.castShadow = true;
-    this.group.add(plate);
+    this.tableGroup.add(plate);
     const rim = new THREE.Mesh(new THREE.TorusGeometry(0.592, 0.006, 8, 56), this.metal(0xe3bd68, 0.25));
     rim.rotation.x = Math.PI / 2;
     rim.position.set(PLATE_X, TABLE_TOP + 0.05, PLATE_Z);
-    this.group.add(rim);
+    this.tableGroup.add(rim);
 
     // soft contact shadows keep everything grounded, with or without shadow maps
     const blob = new THREE.MeshBasicMaterial({ map: shadowBlobTexture(), transparent: true, opacity: 0.55, depthWrite: false });
@@ -301,7 +302,7 @@ export class BirthdayStage {
       (m.material as THREE.MeshBasicMaterial).opacity = o;
       m.rotation.x = -Math.PI / 2;
       m.position.set(x, TABLE_TOP + 0.003, z);
-      this.group.add(m);
+      this.tableGroup.add(m);
     };
     mk(1.45, 0, 0, 0.5);
     mk(0.8, PLATE_X, PLATE_Z, 0.45);
@@ -310,7 +311,7 @@ export class BirthdayStage {
     (floorBlob.material as THREE.MeshBasicMaterial).opacity = 0.65;
     floorBlob.rotation.x = -Math.PI / 2;
     floorBlob.position.y = FLOOR_Y + 0.004;
-    this.group.add(floorBlob);
+    this.tableGroup.add(floorBlob);
   }
 
   private buildCake() {
@@ -891,6 +892,9 @@ export class BirthdayStage {
     this.partyB.intensity = 0;
     this.exitPanel.rotation.y = 0;
     this.exitKnob.rotation.y = 0;
+    this.tableGroup.visible = true;
+    this.cake.visible = true;
+    this.knife.visible = true;
     this.exitLight.intensity = 0;
     (this.exitSpill.material as THREE.MeshBasicMaterial).opacity = 0;
     this.exitDoor.visible = false;
@@ -1193,11 +1197,15 @@ export class BirthdayStage {
 
   /** A door rises out of the floor at the back of the room. */
   async presentExitDoor(): Promise<void> {
+    // The cake has had its moment; clear the foreground for an unobstructed door reveal.
+    this.tableGroup.visible = false;
+    this.cake.visible = false;
+    this.knife.visible = false;
     this.exitDoor.visible = true;
     const doorCenterY = FLOOR_Y + 3.72 / 2;
-    const width = this.isMobile ? 3.85 : 5.4;
-    const height = 5.55;
-    this.moveCamera(this.frame(V(0, doorCenterY + 0.35, EXIT_DOOR_Z), width, height, 0, 0), 1.55);
+    const width = this.isMobile ? 4.25 : 5.4;
+    const height = this.isMobile ? 6.2 : 5.55;
+    this.moveCamera(this.frame(V(0, doorCenterY + (this.isMobile ? 0.8 : 0.35), EXIT_DOOR_Z), width, height, 0, 0), 1.55);
     const startY = FLOOR_Y - 3.3 - 1;
     this.doorSparks.rate = 140;
     await this.run(1.35, (u) => {

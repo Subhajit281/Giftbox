@@ -408,12 +408,13 @@ export const ExperienceRoot: React.FC = () => {
 
       {currentState === 'GIFT_DOOR_READY' && (
         <>
-          <EntryDoorNotification senderName={config.creatorName} message={config.giftDoorNotificationMessage} />
+          <EntryDoorNotification senderName={config.creatorName} message={config.giftDoorNotificationMessage} size="large" />
           <FinalDoorModal
             doorOpened={false}
             onOpenDoor={handleGiftDoor}
             eyebrow="A little something, just for you"
             title="Shall we, sweetheart?"
+            belowNotification
             burst={false}
           />
         </>

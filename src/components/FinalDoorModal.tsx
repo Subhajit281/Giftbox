@@ -8,6 +8,7 @@ interface FinalDoorModalProps {
   onOpenDoor: () => void;
   eyebrow?: string;
   title?: string;
+  belowNotification?: boolean;
   /** Fire the 2D confetti burst on tap (kept for the final door only). */
   burst?: boolean;
 }
@@ -17,6 +18,7 @@ export const FinalDoorModal: React.FC<FinalDoorModalProps> = ({
   onOpenDoor,
   eyebrow = 'Someone is outside...',
   title = 'Tap to Open',
+  belowNotification = false,
   burst = true,
 }) => {
   const [opening, setOpening] = useState(false);
@@ -37,7 +39,7 @@ export const FinalDoorModal: React.FC<FinalDoorModalProps> = ({
   };
 
   return (
-    <div className="door-invitation-anchor fixed inset-x-0 z-40 flex justify-center px-3 pointer-events-none">
+    <div className={`door-invitation-anchor fixed inset-x-0 z-40 flex justify-center px-3 pointer-events-none ${belowNotification ? 'door-invitation-anchor--large-notification' : ''}`}>
       <div className="pointer-events-auto text-center animate-fade-in">
         <button
           onClick={handleDoorClick}
