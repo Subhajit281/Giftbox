@@ -5,6 +5,7 @@ import { BirthdayStage } from './birthday/BirthdayStage';
 import { GiftRoomFX } from './giftroom/GiftRoomFX';
 import { GiftRoomDecor } from './giftroom/GiftRoomDecor';
 import { DoorBadge } from './decor/DoorBadge';
+import { GiftRibbon } from './giftroom/GiftRibbon';
 import { beamTexture, glowTexture } from './birthday/textures';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
@@ -131,6 +132,7 @@ export class GiftBoxScene {
   private giftWorld = new THREE.Group();
   private giftFx!: GiftRoomFX;
   private giftDecor!: GiftRoomDecor;
+  private giftRibbon!: GiftRibbon;
   private doorBadge!: DoorBadge;
   private giftEnv: THREE.Texture | null = null;
   private ambLight!: THREE.AmbientLight;
@@ -433,12 +435,6 @@ export class GiftBoxScene {
       metalness: 0.92,
     });
 
-    const ribbonMat = new THREE.MeshStandardMaterial({
-      color: 0xffdb7a, // Lustrous champagne gold ribbon
-      roughness: 0.22,
-      metalness: 0.86,
-    });
-
     // 1. Box Floor Base
     const floorGeo = new THREE.BoxGeometry(size, 0.08, size);
     this.boxFloor = new THREE.Mesh(floorGeo, interiorMat);
@@ -501,34 +497,10 @@ export class GiftBoxScene {
     lidBorder.position.y = -0.16;
     this.boxLidGroup.add(lidBorder);
 
-    // 3. 3D Bow & Ribbons on Lid
+    // 3. Satin ribbon: two straps wrap the whole gift (lid, sides and base) and a soft bow sits on the lid
     this.ribbonBowGroup.position.set(0, 0.22, 0);
-
-    // Central Bow Knot
-    const knotGeo = new THREE.SphereGeometry(0.2, 16, 16);
-    const knot = new THREE.Mesh(knotGeo, goldMat);
-    this.ribbonBowGroup.add(knot);
-
-    // 4 Satin ribbon loops
-    const loopGeo = new THREE.TorusGeometry(0.4, 0.1, 12, 24, Math.PI * 1.35);
-    for (let r = 0; r < 4; r++) {
-      const loop = new THREE.Mesh(loopGeo, ribbonMat);
-      loop.rotation.z = Math.PI / 3.8;
-      loop.rotation.y = (Math.PI / 2) * r;
-      loop.position.set(Math.cos((Math.PI / 2) * r) * 0.25, 0.12, Math.sin((Math.PI / 2) * r) * 0.25);
-      this.ribbonBowGroup.add(loop);
-    }
+    this.giftRibbon = new GiftRibbon(size, height, this.ribbonBowGroup, this.ribbonBandsGroup);
     this.boxLidGroup.add(this.ribbonBowGroup);
-
-    // 4. Wrapping Ribbon Bands around the entire box
-    const bandHGeo = new THREE.BoxGeometry(size + 0.04, 0.3, size + 0.04);
-    const bandH = new THREE.Mesh(bandHGeo, ribbonMat);
-    bandH.position.y = 0;
-    this.ribbonBandsGroup.add(bandH);
-
-    const bandVGeo = new THREE.BoxGeometry(0.3, height + 0.04, size + 0.04);
-    const bandV = new THREE.Mesh(bandVGeo, ribbonMat);
-    this.ribbonBandsGroup.add(bandV);
 
     this.mainBoxGroup.add(this.ribbonBandsGroup);
     this.mainBoxGroup.add(this.boxLidGroup);
@@ -1171,7 +1143,7 @@ export class GiftBoxScene {
   this.isUnwrapping = true;
   void this.isUnwrapping; // read to avoid unused warning
 
-  const duration = 2600; // ms
+  const duration = 3400; // ms
   let startTime = -1;
 
   const bounce = (x: number) => {
@@ -1192,16 +1164,18 @@ export class GiftBoxScene {
     const progress = Math.min(1, (now - startTime) / duration);
     this.unwrapProgress = progress;
 
-    // Phase 1: the bow swells, spins and unties away (0 to 0.4)
-    const bp = Math.min(1, progress * 2.5);
-    const bowScale = Math.max(0.001, bp < 0.25 ? 1 + bp * 0.9 : (1 + 0.225) * (1 - (bp - 0.25) / 0.75));
+    // Phase 1: the bow loosens and sinks while the satin straps peel off from the top and fall (0 to 0.55)
+    const bp = Math.min(1, progress / 0.4);
+    const be = bp * bp * (3 - 2 * bp);
+    const bowScale = Math.max(0.001, bp < 0.18 ? 1 + bp * 0.5 : 1.09 * (1 - ((bp - 0.18) / 0.82) ** 2));
     this.ribbonBowGroup.scale.set(bowScale, bowScale, bowScale);
-    this.ribbonBowGroup.rotation.y = bp * Math.PI * 3;
-    this.ribbonBandsGroup.scale.set(bowScale, bowScale, bowScale);
+    this.ribbonBowGroup.rotation.y = be * Math.PI * 1.2;
+    this.ribbonBowGroup.position.y = 0.22 - be * 0.12;
+    this.giftRibbon.update(Math.min(1, progress / 0.55));
 
     // Phase 2: lid lifts, twirls and drifts away (0.2 to 0.8)
-    if (progress > 0.2) {
-      const lidProg = (progress - 0.2) / 0.6;
+    if (progress > 0.3) {
+      const lidProg = (progress - 0.3) / 0.58;
       this.boxLidGroup.position.y = 1.1 + lidProg * 2.6;
       this.boxLidGroup.position.z = -lidProg * 1.8;
       this.boxLidGroup.rotation.x = -lidProg * 0.8;
@@ -1210,8 +1184,8 @@ export class GiftBoxScene {
     }
 
     // Phase 3: walls drop and bounce flat like an explosion box (0.4 to 1.0)
-    if (progress > 0.4) {
-      const wallProg = (progress - 0.4) / 0.6;
+    if (progress > 0.45) {
+      const wallProg = (progress - 0.45) / 0.55;
       if (!burst) {
         burst = true;
         this.giftFx.burst();
@@ -1384,6 +1358,7 @@ export class GiftBoxScene {
       case 'DOOR_READY':
       case 'DOOR_OPENING':
       case 'FINAL_HANDOFF':
+        this.orbitLocked = true; // straight-on view only, so the other side of the door can never be seen
         this.doorGroup.visible = true;
         this.cameraTargetPos.set(0, isMobile ? 2.0 : 1.6, isMobile ? 3.6 : 2.4);
         this.cameraLookAt.set(0, 1.1, -4.5);
