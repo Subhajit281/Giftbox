@@ -763,13 +763,13 @@ export class BirthdayStage {
 
     // hinged panel, hinge on the left
     this.exitPanel.position.set(-W / 2, 0, 0.0);
-    const woodMat = new THREE.MeshStandardMaterial({ color: 0x7a1e45, roughness: 0.4, metalness: 0.1, envMap: this.envMap, envMapIntensity: 0.5 });
+    const woodMat = new THREE.MeshStandardMaterial({ color: 0x351522, roughness: 0.32, metalness: 0.24, envMap: this.envMap, envMapIntensity: 0.55 });
     const panel = new THREE.Mesh(new THREE.BoxGeometry(W, H, 0.09), woodMat);
     panel.position.set(W / 2, H / 2, 0.02);
     panel.castShadow = true;
     panel.userData = { isDoor: true };
     this.exitPanel.add(panel);
-    const insetMat = new THREE.MeshStandardMaterial({ color: 0x912654, roughness: 0.38 });
+    const insetMat = new THREE.MeshStandardMaterial({ color: 0x492031, roughness: 0.3, metalness: 0.18 });
     for (const [px, py, w, h] of [[W / 2, H * 0.74, W * 0.66, H * 0.3], [W / 2, H * 0.31, W * 0.66, H * 0.42]]) {
       const inset = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.03), insetMat);
       inset.position.set(px, py, 0.075);
@@ -786,18 +786,10 @@ export class BirthdayStage {
     this.exitPanel.add(this.exitKnob);
     g.add(this.exitPanel);
 
-    // "Entering the 20's" medallion on the panel + flower garlands over the lintel and down the jambs
-    this.exitBadge = new DoorBadge(1.5);
-    this.exitBadge.badge.position.set(W / 2, H * 0.62, 0.1);
+    // Coordinate the birthday-room exit with the same understated 20th-birthday detail.
+    this.exitBadge = new DoorBadge(0.82);
+    this.exitBadge.badge.position.set(W / 2, H * 0.72, 0.1);
     this.exitPanel.add(this.exitBadge.badge);
-    const garlandTop = DoorBadge.garland(W + 1.1, 0.5, 0, 5);
-    garlandTop.position.set(0, H + 0.2, 0.17);
-    g.add(garlandTop);
-    for (const sx of [-1, 1]) {
-      const side = DoorBadge.garland(H + 0.2, 0.46, Math.PI / 2, 9 + sx);
-      side.position.set(sx * (W / 2 + 0.1), (H + 0.12) / 2, 0.12);
-      g.add(side);
-    }
 
     this.exitLight = new THREE.PointLight(0xffd9a2, 0, 11, 2);
     this.exitLight.position.set(0, 1.7, 1.2);
@@ -1199,10 +1191,10 @@ export class BirthdayStage {
   /** A door rises out of the floor at the back of the room. */
   async presentExitDoor(): Promise<void> {
     this.exitDoor.visible = true;
-    this.moveCamera(this.frame(V(0, 1.3, EXIT_DOOR_Z), 4.2, 4.6, 0, 0.36), 2.2);
+    this.moveCamera(this.frame(V(0, 1.3, EXIT_DOOR_Z), 4.2, 4.6, 0, 0.36), 1.55);
     const startY = FLOOR_Y - 3.3 - 1;
     this.doorSparks.rate = 140;
-    await this.run(1.7, (u) => {
+    await this.run(1.35, (u) => {
       this.exitDoor.position.y = lerp(startY, FLOOR_Y, easeBack(u));
       this.exitLight.intensity = 3.2 * seg(u, 0.4, 1);
       this.ambient = lerp(0.7, 0.72, u);

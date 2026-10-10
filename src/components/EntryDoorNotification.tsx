@@ -15,7 +15,7 @@ export const EntryDoorNotification: React.FC<EntryDoorNotificationProps> = ({ se
 
   return (
     <div className="fixed top-[max(1rem,env(safe-area-inset-top))] inset-x-0 z-50 flex justify-center px-3 sm:px-4 pointer-events-none animate-fade-in">
-      <div className="welcome-notification glass-panel max-w-md w-full p-3 sm:p-4 rounded-2xl border border-[#f2d48b]/70 flex items-start gap-3 text-[#2e0b19]">
+      <div className="welcome-notification glass-panel max-w-md w-full p-3 sm:p-4 rounded-2xl border border-[#f2d48b]/45 flex items-start gap-3 text-[#2e0b19]">
         <div className="w-10 h-10 shrink-0 rounded-2xl bg-gradient-to-br from-[#fff0f3] to-[#fde2e7] border border-[#d4af37]/60 flex items-center justify-center shadow-sm">
           <Heart className="w-5 h-5 text-[#8a1c35] fill-current" />
         </div>

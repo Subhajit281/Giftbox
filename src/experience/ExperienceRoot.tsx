@@ -14,7 +14,7 @@ import { ProposalOverlay } from '../components/ProposalOverlay';
 import { ProposalNotification } from '../components/ProposalNotification';
 import { ExperienceHUD } from '../components/ExperienceHUD';
 import { BirthdayCelebration } from '../components/BirthdayCelebration';
-import { BirthdayCeremony } from '../components/BirthdayCeremony';
+import { BIRTHDAY_COUNTDOWN_SECONDS, BirthdayCeremony } from '../components/BirthdayCeremony';
 import type { CeremonyPhase } from '../components/BirthdayCeremony';
 import { EntryDoorNotification } from '../components/EntryDoorNotification';
 import { LoveAtmosphere } from '../components/LoveAtmosphere';
@@ -34,7 +34,6 @@ export const ExperienceRoot: React.FC = () => {
   const [selectedGiftId, setSelectedGiftId] = useState<string | null>(null);
   const [config] = useState<ExperienceConfig>(loadSavedConfig());
   const [isAudioMuted, setIsAudioMuted] = useState(false);
-  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [proposalDoorOpened, setProposalDoorOpened] = useState(false);
   const [entryDoorOpened, setEntryDoorOpened] = useState(false);
   const [birthdayPhase, setBirthdayPhase] = useState<CeremonyPhase | null>(null);
@@ -83,7 +82,7 @@ export const ExperienceRoot: React.FC = () => {
       setCurrentState('ENTRY_DOOR');
       scene.setState('ENTRY_DOOR');
       setCurtain(false); // the door fades in out of the dark, alone
-      noticeTimer = window.setTimeout(() => setEntryReady(true), 1900); // then the message arrives
+      noticeTimer = window.setTimeout(() => setEntryReady(true), 1500); // then the message arrives
     });
 
     return () => {
@@ -207,7 +206,7 @@ export const ExperienceRoot: React.FC = () => {
     setCelebration('leaving');
     setBirthdayPhase(null);
     window.setTimeout(() => { if (birthdayRun.current === id) setCelebration('done'); }, 750);
-    await wait(1000); if (!alive()) return; // calm down before the next surprise
+    await wait(550); if (!alive()) return; // keep the celebration-to-door pause brief
 
     // 4. a second door rises, then the message to open it
     await scene.presentBirthdayDoor(); if (!alive()) return;
@@ -218,20 +217,24 @@ export const ExperienceRoot: React.FC = () => {
     if (entryDoorOpenedRef.current) return;
     entryDoorOpenedRef.current = true;
     setEntryDoorOpened(true);
+    soundManager.primePlaylist('birthdayRoom');
     transitionTo('ENTRY_DOOR_OPENING');
     await wait(1600);            // let the door swing and the light spill out
     setCurtain(true);
     await wait(CURTAIN_MS + 150);
     sceneRef.current?.enterBirthdayRoom();
-    setBirthdayPhase('countdown');
     transitionTo('BIRTHDAY_COUNTDOWN');
-    void sceneRef.current?.startBirthdayCountdown(8);
+    soundManager.playPlaylist('birthdayRoom', true);
     setCurtain(false);
+    await wait(CURTAIN_MS + 150);
+    setBirthdayPhase('countdown');
+    void sceneRef.current?.startBirthdayCountdown(BIRTHDAY_COUNTDOWN_SECONDS);
   }, [transitionTo]);
 
   const handleGiftDoor = useCallback(async () => {
     if (giftDoorBusy.current) return;
     giftDoorBusy.current = true;
+    soundManager.primePlaylist('giftRoom');
     transitionTo('GIFT_TRANSITION');
     await sceneRef.current?.openBirthdayDoor();
     await wait(500);             // a breath after the door opens
@@ -239,6 +242,7 @@ export const ExperienceRoot: React.FC = () => {
     await wait(CURTAIN_MS + 150);
     sceneRef.current?.leaveBirthdayRoom();
     transitionTo('GIFT_READY');
+    soundManager.playPlaylist('giftRoom', true);
     setCurtain(false);
   }, [transitionTo]);
 
@@ -281,7 +285,7 @@ export const ExperienceRoot: React.FC = () => {
 
     transitionTo('PROPOSAL_ENTER');
     scene.enterProposalRoom();
-    soundManager.playPlaylist('proposal');
+    soundManager.playPlaylist('proposal', true);
     await wait(300); if (!alive()) return;
     setCurtain(false);                      // fade into the balloon room
     await wait(CURTAIN_MS + 900); if (!alive()) return;
@@ -351,16 +355,6 @@ export const ExperienceRoot: React.FC = () => {
     soundManager.setMuted(nextMuted);
   }, [isAudioMuted]);
 
-  const handleToggleMusic = useCallback(() => {
-    if (isMusicPlaying) {
-      soundManager.stopBackgroundMusic();
-      setIsMusicPlaying(false);
-    } else {
-      soundManager.startBackgroundMusic();
-      setIsMusicPlaying(true);
-    }
-  }, [isMusicPlaying]);
-
   const activeGift = gifts.find((g) => g.id === selectedGiftId);
 
   return (
@@ -374,9 +368,7 @@ export const ExperienceRoot: React.FC = () => {
         currentState={currentState}
         gifts={gifts}
         isAudioMuted={isAudioMuted}
-        isMusicPlaying={isMusicPlaying}
         onToggleMute={handleToggleMute}
-        onToggleMusic={handleToggleMusic}
       />
 
       {(celebration === 'playing' || celebration === 'leaving') && (
@@ -386,12 +378,12 @@ export const ExperienceRoot: React.FC = () => {
       {/* The opening invitation remains until she opens the front door. */}
       {currentState === 'ENTRY_DOOR' && entryReady && (
         <>
-          <EntryDoorNotification senderName={`${config.creatorName} ❤️`} message="Tap the door to open it, baby." />
+          <EntryDoorNotification senderName={`${config.creatorName} ❤️`} message="I made a little birthday world just for you. Come in, my love." />
           <FinalDoorModal
             doorOpened={entryDoorOpened}
             onOpenDoor={handleEntryDoor}
             eyebrow="A birthday surprise is inside"
-            title="Open the door"
+            title="Come on in, my love"
             burst={false}
           />
         </>
@@ -403,12 +395,12 @@ export const ExperienceRoot: React.FC = () => {
 
       {currentState === 'GIFT_DOOR_READY' && (
         <>
-          <EntryDoorNotification senderName={`${config.creatorName} ❤️`} message="Tap the door to see what I kept for you in the next room." />
+          <EntryDoorNotification senderName={`${config.creatorName} ❤️`} message="One more little surprise is waiting for you, sweetheart." />
           <FinalDoorModal
             doorOpened={false}
             onOpenDoor={handleGiftDoor}
-            eyebrow="One more little surprise"
-            title="Go to the gift room"
+            eyebrow="A little something, just for you"
+            title="Shall we, sweetheart?"
             burst={false}
           />
         </>

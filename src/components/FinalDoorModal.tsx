@@ -41,16 +41,16 @@ export const FinalDoorModal: React.FC<FinalDoorModalProps> = ({
       <div className="pointer-events-auto text-center animate-fade-in">
         <button
           onClick={handleDoorClick}
-          className="premium-door-cta group py-3 sm:py-4 px-5 sm:px-8 rounded-full glass-panel border-2 border-[#d4af37]/70 shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer flex items-center gap-2.5 sm:gap-3.5 bg-white/95 text-[#2e0b19]"
+          className="door-invitation premium-door-cta group py-2.5 sm:py-3 px-4 sm:px-5 rounded-2xl glass-panel shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 cursor-pointer flex items-center gap-2.5 sm:gap-3 text-[#2e0b19]"
         >
-          <DoorOpen className="w-7 h-7 text-[#c59b27] group-hover:rotate-12 transition-transform" />
+          <DoorOpen className="w-6 h-6 shrink-0 text-[#b28b52] group-hover:translate-x-0.5 transition-transform" />
           <div className="text-left">
-            <span className="block text-[11px] uppercase tracking-widest text-[#8a1c35] font-bold">
+            <span className="block text-[10px] uppercase tracking-[0.16em] text-[#8a1c35] font-bold">
               {eyebrow}
             </span>
-            <span className="font-serif-luxury text-lg sm:text-2xl font-bold text-[#2e0b19]">{title}</span>
+            <span className="font-serif-luxury text-base sm:text-lg font-semibold text-[#2e0b19]">{title}</span>
           </div>
-          <Sparkles className="w-5 h-5 text-[#c59b27] animate-pulse" />
+          <Sparkles className="w-4 h-4 shrink-0 text-[#b28b52]" />
         </button>
       </div>
     </div>

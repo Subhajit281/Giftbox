@@ -980,14 +980,14 @@ export class GiftBoxScene {
     this.teddyGroup.visible = false;
   }
 
-  // 3D Arched Door
+  // 3D birthday door
   private createDoor() {
     this.doorGroup.position.set(0, 0, -4.5);
     this.doorGroup.visible = false;
 
-    // Outer door frame
+    // Deep-wine finish, champagne-metal reveals, and one restrained birthday plaque.
     const frameGeo = new THREE.BoxGeometry(2.6, 4.4, 0.25);
-    const frameMat = new THREE.MeshStandardMaterial({ color: 0xd39a62, emissive: 0x3b1808, emissiveIntensity: 0.22, roughness: 0.42, metalness: 0.28 });
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x6a3447, emissive: 0x190812, emissiveIntensity: 0.12, roughness: 0.34, metalness: 0.42 });
     const frame = new THREE.Mesh(frameGeo, frameMat);
     frame.position.y = 1.1;
     this.doorGroup.add(frame);
@@ -995,7 +995,7 @@ export class GiftBoxScene {
     // Hinged door panel (Pivot at x = -0.95)
     this.doorHingedPanel.position.set(-0.95, 1.1, 0);
     const panelGeo = new THREE.BoxGeometry(1.9, 4.1, 0.12);
-    const woodMat = new THREE.MeshStandardMaterial({ color: 0xb97845, emissive: 0x2e1307, emissiveIntensity: 0.16, roughness: 0.46, metalness: 0.2 });
+    const woodMat = new THREE.MeshStandardMaterial({ color: 0x351522, emissive: 0x160711, emissiveIntensity: 0.12, roughness: 0.32, metalness: 0.24 });
     const panel = new THREE.Mesh(panelGeo, woodMat);
     panel.position.set(0.95, 0, 0);
     panel.castShadow = true;
@@ -1004,7 +1004,7 @@ export class GiftBoxScene {
 
     // Brass handle
     const handleGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.26, 12);
-    const brassMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.2 });
+    const brassMat = new THREE.MeshStandardMaterial({ color: 0xc9a96a, metalness: 0.82, roughness: 0.24 });
     this.doorHandle = new THREE.Mesh(handleGeo, brassMat);
     this.doorHandle.rotation.z = Math.PI / 2;
     this.doorHandle.position.set(1.65, 0, 0.12);
@@ -1037,18 +1037,10 @@ export class GiftBoxScene {
     panel.userData = { isDoor: true };
     this.doorHandle.userData = { isDoor: true };
 
-    // "Entering the 20's" medallion on the panel + flower garlands on the frame
-    this.doorBadge = new DoorBadge(1.45);
-    this.doorBadge.badge.position.set(0.95, 0.75, 0.075);
+    // A small, clean 20th-birthday plaque replaces the oversized floral dressing.
+    this.doorBadge = new DoorBadge(0.74);
+    this.doorBadge.badge.position.set(0.95, 1.18, 0.075);
     this.doorHingedPanel.add(this.doorBadge.badge);
-    const top = DoorBadge.garland(3.1, 0.55, 0, 7);
-    top.position.set(0, 3.32, 0.16);
-    this.doorGroup.add(top);
-    for (const sx of [-1, 1]) {
-      const side = DoorBadge.garland(4.2, 0.5, Math.PI / 2, 11 + sx);
-      side.position.set(sx * 1.3, 1.1, 0.16);
-      this.doorGroup.add(side);
-    }
   }
 
   private createBirthdayRoom() {
@@ -1298,8 +1290,8 @@ export class GiftBoxScene {
       case 'ENTRY_DOOR_OPENING':
         this.doorGroup.visible = true;
         this.orbitLocked = true; // a still, straight-on view of the door: no camera rotation at all
-        this.cameraTargetPos.set(0, isMobile ? 2.0 : 1.6, isMobile ? 3.6 : 2.4);
-        this.cameraLookAt.set(0, 1.1, -4.5);
+        this.cameraTargetPos.set(0, 1.62, isMobile ? 3.6 : 2.4);
+        this.cameraLookAt.set(0, 1.62, -4.5);
         if (prev === 'BOOT') this.snapCameraNext = true;
         if (newState === 'ENTRY_DOOR_OPENING') this.isDoorOpening = true;
         break;
@@ -1366,8 +1358,8 @@ export class GiftBoxScene {
       case 'FINAL_HANDOFF':
         this.orbitLocked = true; // straight-on view only, so the other side of the door can never be seen
         this.doorGroup.visible = true;
-        this.cameraTargetPos.set(0, isMobile ? 2.0 : 1.6, isMobile ? 3.6 : 2.4);
-        this.cameraLookAt.set(0, 1.1, -4.5);
+        this.cameraTargetPos.set(0, 1.62, isMobile ? 3.6 : 2.4);
+        this.cameraLookAt.set(0, 1.62, -4.5);
         if (newState === 'DOOR_OPENING' || newState === 'FINAL_HANDOFF') {
           this.isDoorOpening = true;
         }

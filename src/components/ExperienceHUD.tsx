@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, Music, ShoppingBag, Sparkles, Heart, Rotate3D } from 'lucide-react';
+import { Volume2, VolumeX, ShoppingBag, Sparkles, Heart, Rotate3D } from 'lucide-react';
 import type { ExperienceState } from '../state/ExperienceState';
 import type { GiftItem } from '../content/giftData';
 
@@ -7,18 +7,14 @@ interface ExperienceHUDProps {
   currentState: ExperienceState;
   gifts: GiftItem[];
   isAudioMuted: boolean;
-  isMusicPlaying: boolean;
   onToggleMute: () => void;
-  onToggleMusic: () => void;
 }
 
 export const ExperienceHUD: React.FC<ExperienceHUDProps> = ({
   currentState,
   gifts,
   isAudioMuted,
-  isMusicPlaying,
   onToggleMute,
-  onToggleMusic,
 }) => {
   const collectedCount = gifts.filter((g) => g.isCollected).length;
   const totalCount = gifts.length;
@@ -39,20 +35,6 @@ export const ExperienceHUD: React.FC<ExperienceHUDProps> = ({
             >
               {isAudioMuted ? <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-500" /> : <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#c59b27]" />}
             </button>
-
-            <button
-              onClick={onToggleMusic}
-              aria-label="Toggle Romantic Ambient Music"
-              className={`p-2 sm:p-2.5 px-2.5 sm:px-3.5 rounded-full glass-pill text-[#3b0a1a] transition cursor-pointer shadow-md active:scale-95 flex items-center gap-1.5 sm:gap-2 border ${
-                isMusicPlaying ? 'bg-rose-100/90 border-[#d4af37]' : 'hover:bg-rose-50 border-[#d4af37]/40'
-              }`}
-              title="Toggle Ambient Melody"
-            >
-              <Music className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#c59b27] ${isMusicPlaying ? 'animate-spin' : ''}`} style={{ animationDuration: '8s' }} />
-              <span className="text-[10px] sm:text-xs font-serif-luxury font-semibold tracking-wide hidden sm:inline">
-                {isMusicPlaying ? 'Melody Playing' : 'Play Melody'}
-              </span>
-            </button>
           </div>
 
           <div className="w-8 sm:w-9" aria-hidden="true" />
@@ -64,14 +46,14 @@ export const ExperienceHUD: React.FC<ExperienceHUDProps> = ({
             <div className="inline-flex items-center gap-1.5 sm:gap-2 glass-pill py-1.5 sm:py-2 px-1 sm:px-2 md:px-3 rounded-full border border-[#f2d48b]/70 shadow-[0_10px_30px_rgba(28,4,15,0.24)] bg-[#fffdf9]/90 backdrop-blur-md">
               <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#c59b27] shrink-0 animate-pulse" />
               <p className="font-serif-luxury text-xs sm:text-sm md:text-base font-semibold text-[#3b0a1a] italic tracking-wide">
-                "I left a few things inside for you. Take your time."
+                "I tucked a few little surprises inside for you."
               </p>
               <Heart className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#c16e7d] fill-current shrink-0" />
             </div>
             
             {/* Swipe instruction */} 
             <p className="font-serif-luxury text-xs sm:text-sm md:text-base font-semibold text-[#ffffff] italic tracking-wide">
-              Swipe Screen to rotate the gift
+              Gently swipe to explore your surprises
             </p>
           </div>
         )}
